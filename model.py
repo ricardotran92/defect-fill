@@ -155,7 +155,6 @@ class DefectFillModel(nn.Module):
 
         self.pipeline.set_progress_bar_config(disable=True)
         self.pipeline.scheduler = self.scheduler
-        self.scheduler.set_timesteps(30)
 
         # The paper uses the tokenizer's existing "sks" identifier, not textual inversion.
         self.placeholder_token = placeholder_token
@@ -338,19 +337,21 @@ class DefectFillModel(nn.Module):
 
     @staticmethod
     def compute_masked_mse(noise_pred: torch.Tensor, noise: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Helper to calculate MSE loss only within the masked area"""
-        noise_pred = noise_pred.float()
-        noise = noise.float()
-        mask = mask.float()
-        weighted_loss = mask * ((noise_pred - noise) ** 2)
-        return torch.sum(weighted_loss) / torch.clamp(torch.sum(mask), min=1e-6)
-    
+        """Paper Eq. 5/7: E[||W ⊙ (ε − ε_θ)||²], averaged over all latent elements in FP32.
+
+        The weight sits inside the squared norm, so a soft weight w contributes w² per element.
+        Averaging over every element (a constant divisor) keeps the paper's relative weighting
+        between samples, unlike dividing by the mask area.
+        """
+        residual = mask.float() * (noise.float() - noise_pred.float())
+        return residual.pow(2).mean()
+
     def compute_defect_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor) -> torch.Tensor:
-        """L_def loss: MSE restricted to the defect mask region"""
+        """L_def (Eq. 5): squared error restricted to the defect mask M"""
         return self.compute_masked_mse(noise_pred, noise, mask_latents)
-    
+
     def compute_object_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor, alpha: float = 0.3) -> torch.Tensor:
-        """L_obj loss: Uses weighted mask M' = M + alpha*(1-M) to preserve object context"""
+        """L_obj (Eq. 7): ||M' ⊙ (ε − ε_θ)||² with M' = M + alpha*(1-M), so background weighs alpha²"""
         weighted_mask = mask_latents + alpha * (1 - mask_latents)
         return self.compute_masked_mse(noise_pred, noise, weighted_mask)
     
