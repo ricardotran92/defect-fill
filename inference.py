@@ -110,7 +110,7 @@ def generate_and_select_batch(
         clean_image,
         samples,
         mask,
-        smooth_boundary=False,  # paper: LPIPS "measured only within the masked region"
+        smooth_boundary=True,
     )
     best_index = int(lpips_scores.argmax().item())
     return samples[best_index].clone(), float(lpips_scores[best_index].item())
@@ -205,7 +205,6 @@ def inference(args):
         "dilate_mask": args.dilate_mask,
         "mask_kernel_size": args.mask_kernel_size,
         "background_preservation": "persistent_latent_noise_v1",
-        "lfs_mask": "binary",
     }
     inference_log = _load_existing_log(log_path, resume_signature) or {
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),

@@ -10,7 +10,7 @@ import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
 from model import DefectFillModel
-from data_loader import generate_random_box_mask, get_data_loaders
+from data_loader import get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
     build_split_manifest,
@@ -23,11 +23,6 @@ from utils import find_latest_valid_checkpoint, load_checkpoint, save_checkpoint
 # TensorBoard support
 from torch.utils.tensorboard import SummaryWriter
 import datetime
-
-
-# Masked noise losses follow paper Eq. 5/7: weight inside the squared norm, mean over all elements.
-# Recorded in the resume fingerprint so checkpoints trained with the old normalization are not resumed.
-MASKED_LOSS_VERSION = "paper_eq5_eq7_mean"
 
 
 def generate_seed_from_timestamp():
@@ -87,7 +82,6 @@ def train(args):
         "lambda_obj": args.lambda_obj,
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
-        "masked_loss": MASKED_LOSS_VERSION,
         "batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "lr_warmup_steps": args.lr_warmup_steps,
@@ -130,7 +124,6 @@ def train(args):
         "lambda_obj": args.lambda_obj,
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
-        "masked_loss": MASKED_LOSS_VERSION,
         "batch_size": args.batch_size,
         "max_train_steps": args.max_train_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
@@ -250,6 +243,7 @@ def train(args):
             images = batch["image"].to(device, dtype=torch.float16)
             masks = batch["mask"].to(device, dtype=torch.float16)
             backgrounds = batch["background"].to(device, dtype=torch.float16)
+            adjusted_masks = batch["adjusted_mask"].to(device, dtype=torch.float16)
             is_defect = batch["is_defect"]
             
             # Ensure we only process defective samples
@@ -261,6 +255,7 @@ def train(args):
             defect_images = images[defect_samples]
             defect_masks = masks[defect_samples]
             defect_backgrounds = backgrounds[defect_samples]
+            defect_adjusted_masks = adjusted_masks[defect_samples]
             object_classes = [batch["object_class"][int(i)] for i in defect_samples]
             
             # Learning rate warmup
@@ -312,11 +307,19 @@ def train(args):
             defect_loss = model.compute_defect_loss(noise_pred, noise, mask_latents)
             
             # ========== PHASE 2: Object Branch (Object Integrity Learning) ==========
-            # Random box masks M_rand (Eq. 6) for structural context learning
-            height, width = defect_images.shape[-2:]
-            random_masks = torch.stack(
-                [generate_random_box_mask(height, width) for _ in range(defect_images.shape[0])]
-            ).unsqueeze(1).to(device, dtype=defect_images.dtype)
+            # Generate random masks for structural context learning
+            num_random_boxes = 30 
+            random_masks = torch.zeros_like(defect_images[:, :1])
+            for i in range(random_masks.shape[0]):
+                mask = random_masks[i, 0]
+                h, w = mask.shape
+                for _ in range(num_random_boxes):
+                    min_size, max_size = int(min(h, w) * 0.03), int(min(h, w) * 0.25)
+                    rect_h = torch.randint(min_size, max(min_size+1, max_size), (1,)).item()
+                    rect_w = torch.randint(min_size, max(min_size+1, max_size), (1,)).item()
+                    y = torch.randint(0, max(1, h - rect_h), (1,)).item()
+                    x = torch.randint(0, max(1, w - rect_w), (1,)).item()
+                    mask[y:y+rect_h, x:x+rect_w] = 1.0
             
             # Prompts linking object class with the defect token
             obj_prompts = [f"A {obj_class} with {model.placeholder_token}" for obj_class in object_classes]

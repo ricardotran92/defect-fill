@@ -247,10 +247,7 @@ def evaluate(args):
         inference_log = validate_inference_log(json.load(handle), manifest_fingerprint)
 
     root = Path(manifest["data_dir"])
-    # KID compares against defect images excluded from training (paper protocol).
     real_images = [str(root / Path(entry["image"])) for entry in manifest["heldout"]]
-    # IC-LPIPS (Ojha et al., 2021) clusters generated images around the training references.
-    cluster_references = [str(root / Path(entry["image"])) for entry in manifest["train"]]
     generated_images = collect_generated_images(args.generated_dir)
     if len(real_images) < 2 or len(generated_images) < 2:
         raise ValueError("Evaluation requires at least two held-out real and generated images")
@@ -270,7 +267,7 @@ def evaluate(args):
     ic_evaluator = ICLPIPSEvaluator(device=device)
     ic_result = ic_evaluator.compute_ic_lpips(
         generated_images,
-        cluster_references,
+        real_images,
         max_pairs_per_cluster=args.max_pairs_per_cluster or None,
         seed=args.seed,
     )
@@ -293,7 +290,6 @@ def evaluate(args):
         "ic_lpips": ic_result["mean"],
         "ic_lpips_cluster_std": ic_result["std"],
         "ic_lpips_valid_clusters": ic_result["valid_clusters"],
-        "ic_lpips_reference": "train",
         "ic_lpips_cluster_sizes": json.dumps(ic_result["cluster_sizes"]),
         "inference_target_images": inference_log.get("target_images"),
     }

@@ -167,7 +167,7 @@ def find_latest_valid_checkpoint(checkpoints_dir, expected_metadata=None):
     return str(latest_path) if latest_path is not None else None
 
 
-def compute_spatial_lpips(lpips_model, img1, img2, mask, smooth_boundary=False):
+def compute_spatial_lpips(lpips_model, img1, img2, mask, smooth_boundary=True):
     """
     Calculates the Perceptual Distance specifically within the masked region using Spatial LPIPS
     
@@ -176,7 +176,7 @@ def compute_spatial_lpips(lpips_model, img1, img2, mask, smooth_boundary=False):
         img1: Reference image [B, 3, H, W], range [-1, 1]
         img2: Comparison image [B, 3, H, W], range [-1, 1]
         mask: Defect mask [B, 1, H, W], range [0, 1]
-        smooth_boundary: Blur the mask edges (off by default; the paper scores only inside the mask)
+        smooth_boundary: Whether to blur the mask edges to avoid boundary artifacts
     
     Returns:
         lpips_score: LPIPS score for the masked region (scalar)
@@ -209,7 +209,7 @@ def compute_spatial_lpips(lpips_model, img1, img2, mask, smooth_boundary=False):
     return (weighted_sum / mask_sum).mean()
 
 
-def compute_spatial_lpips_batch(lpips_model, reference, samples, mask, smooth_boundary=False):
+def compute_spatial_lpips_batch(lpips_model, reference, samples, mask, smooth_boundary=True):
     """
     Batch calculation of Spatial LPIPS - Evaluates all generated samples at once (FP16 compatible)
     
@@ -221,7 +221,7 @@ def compute_spatial_lpips_batch(lpips_model, reference, samples, mask, smooth_bo
         reference: Single reference image [1, 3, H, W], range [-1, 1]
         samples: Multiple generated samples [N, 3, H, W], range [-1, 1]
         mask: Single defect mask [1, 1, H, W], range [0, 1]
-        smooth_boundary: Blur the mask edges (off by default; the paper scores only inside the mask)
+        smooth_boundary: Enable mask boundary smoothing
     
     Returns:
         lpips_scores: A tensor of [N] LPIPS scores

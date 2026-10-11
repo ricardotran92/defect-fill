@@ -6,28 +6,6 @@ import albumentations as A
 from torch.utils.data import Dataset, DataLoader
 from albumentations.pytorch import ToTensorV2
 
-# Paper (object loss): M_rand holds 30 random boxes whose sides span 3%-25% of the image size.
-RANDOM_BOX_COUNT = 30
-RANDOM_BOX_MIN_FRAC = 0.03
-RANDOM_BOX_MAX_FRAC = 0.25
-
-
-def generate_random_box_mask(height, width, generator=None):
-    """Random box mask M_rand (paper Eq. 6) as a float {0, 1} tensor of shape (height, width)."""
-    mask = torch.zeros(height, width)
-    min_side = int(min(height, width) * RANDOM_BOX_MIN_FRAC)
-    max_side = max(min_side + 1, int(min(height, width) * RANDOM_BOX_MAX_FRAC))
-
-    def randint(low, high):
-        return int(torch.randint(low, high, (1,), generator=generator).item())
-
-    for _ in range(RANDOM_BOX_COUNT):
-        box_h, box_w = randint(min_side, max_side), randint(min_side, max_side)
-        y, x = randint(0, max(1, height - box_h)), randint(0, max(1, width - box_w))
-        mask[y:y + box_h, x:x + box_w] = 1.0
-    return mask
-
-
 class MVTecDefectDataset(Dataset):
     def __init__(
         self,
@@ -193,8 +171,25 @@ class MVTecDefectDataset(Dataset):
         return len(self.images)
     
     def generate_random_mask(self, image_size):
-        """Random box mask for images without a ground-truth mask (numpy, for albumentations)"""
-        return generate_random_box_mask(*image_size).numpy()
+        """Generate random rectangular masks for object loss (integrity learning)"""
+        mask = np.zeros(image_size, dtype=np.float32)
+        num_rectangles = 30
+        
+        h, w = image_size
+        for _ in range(num_rectangles):
+            # Rectangle size between 3% and 25% of image dimensions
+            min_size = int(min(h, w) * 0.03)
+            max_size = int(min(h, w) * 0.25)
+            
+            rect_h = np.random.randint(min_size, max_size)
+            rect_w = np.random.randint(min_size, max_size)
+            
+            y = np.random.randint(0, h - rect_h)
+            x = np.random.randint(0, w - rect_w)
+            
+            mask[y:y+rect_h, x:x+rect_w] = 1.0
+            
+        return mask
     
     def __getitem__(self, idx):
         img_path = self.images[idx]
@@ -235,11 +230,15 @@ class MVTecDefectDataset(Dataset):
         
         # Create background (masked image) for the inpainting input: I * (1 - M)
         background = image * (1 - mask)
-
+        
+        # Adjusted mask used for Object Loss calculation
+        adjusted_mask = mask + 0.3 * (1 - mask) if mask_path is None else mask
+        
         return {
             'image': image,
             'mask': mask,
             'background': background,
+            'adjusted_mask': adjusted_mask,
             'is_defect': mask_path is not None,
             'object_class': self.object_class,
             'image_path': img_path,
