@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Block commits that stage files >= 99 MB (GitHub rejects >= 100 MB) before they
+# reach history, so `git push` is never interrupted by a large file.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Override the limit:     LARGE_FILE_LIMIT_MB=50 git commit ...
+
+limit_mb=${LARGE_FILE_LIMIT_MB:-99}
+limit_bytes=$((limit_mb * 1024 * 1024))
+blocked=0
+
+while IFS= read -r -d '' path; do
+    size=$(git cat-file -s ":$path" 2>/dev/null || echo 0)
+    if [ "$size" -ge "$limit_bytes" ]; then
+        echo "Too large to commit ($((size / 1024 / 1024)) MB >= ${limit_mb} MB): $path" >&2
+        blocked=1
+    fi
+done < <(git diff --cached --name-only --diff-filter=AM -z)
+
+if [ "$blocked" -eq 1 ]; then
+    cat >&2 <<'EOF'
+
+Commit blocked. Large artifacts stay on the server; see the project guide.
+  Unstage:  git restore --staged <path>
+  Ignore:   add the path or its pattern to .gitignore
+EOF
+    exit 1
+fi
+exit 0

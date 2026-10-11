@@ -1,5 +1,23 @@
 .venv
 __pycache__
+.pytest_cache
 mvtec_ad
 models
 formula
+
+# Generated artifacts: keep on the server, fetch on demand (never push)
+runs/
+output/
+figures/
+*.log
+
+# Large binary formats (GitHub rejects files >= 100 MB)
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.tar
+*.tar.gz
+*.tar.xz
+*.zip
