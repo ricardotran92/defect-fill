@@ -33,6 +33,10 @@ import datetime
 # Masked noise losses follow paper Eq. 5/7: weight inside the squared norm, mean over all elements.
 # Recorded in the resume fingerprint so checkpoints trained with the old normalization are not resumed.
 MASKED_LOSS_VERSION = "paper_eq5_eq7_mean"
+# The UNet runs in fp16 without autocast, so backward produces fp16 gradients. The paper-normalized
+# losses are ~100x smaller than before, which made those gradients underflow; dynamic loss scaling
+# keeps them representable. Part of the resume fingerprint like MASKED_LOSS_VERSION.
+LOSS_SCALING_VERSION = "dynamic_grad_scaler_v1"
 
 
 def generate_seed_from_timestamp():
@@ -93,6 +97,7 @@ def train(args):
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
+        "loss_scaling": LOSS_SCALING_VERSION,
         "batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "lr_warmup_steps": args.lr_warmup_steps,
@@ -136,6 +141,7 @@ def train(args):
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
+        "loss_scaling": LOSS_SCALING_VERSION,
         "batch_size": args.batch_size,
         "max_train_steps": args.max_train_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
@@ -196,6 +202,8 @@ def train(args):
         {"params": unet_params, "lr": args.unet_lr}
     ])
     
+    grad_scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
+
     # Save original LRs for warmup calculation
     base_lrs = [args.text_encoder_lr, args.unet_lr]
     
@@ -219,6 +227,7 @@ def train(args):
             resume_path,
             expected_metadata=checkpoint_metadata,
             restore_rng=True,
+            grad_scaler=grad_scaler,
         )
         print(f"Resuming from step {start_step}")
         log_file.write(f"Resuming from {resume_path} at step {start_step}\n")
@@ -359,12 +368,13 @@ def train(args):
                 accumulation_step = 0
                 continue
             
-            total_loss.backward()
+            grad_scaler.scale(total_loss).backward()
             accumulation_step += 1
             
             # Optimization step
             if accumulation_step >= args.gradient_accumulation_steps:
-                optimizer.step()
+                grad_scaler.step(optimizer)  # unscales, skips the step if any gradient is inf/NaN
+                grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
                 accumulation_step = 0
                 
@@ -376,6 +386,7 @@ def train(args):
                 writer.add_scalar("Loss/Object", object_loss.item(), global_step)
                 writer.add_scalar("Loss/Attention", attention_loss.item(), global_step)
                 writer.add_scalar("Loss/Total", total_loss.item() * args.gradient_accumulation_steps, global_step)
+                writer.add_scalar("LossScale", grad_scaler.get_scale(), global_step)
                 
                 if global_step % 10 == 0:
                     for i, param_group in enumerate(optimizer.param_groups):
@@ -390,6 +401,7 @@ def train(args):
                         global_step,
                         checkpoint_path,
                         metadata=checkpoint_metadata,
+                        grad_scaler=grad_scaler,
                     )
                     log_file.write(f"Checkpoint saved at step {global_step}\n")
 
@@ -405,6 +417,7 @@ def train(args):
             global_step,
             checkpoint_path,
             metadata=checkpoint_metadata,
+            grad_scaler=grad_scaler,
         )
         log_file.write(f"Interrupted; checkpoint saved at step {global_step}\n")
         log_file.flush()
@@ -421,6 +434,7 @@ def train(args):
         global_step,
         final_checkpoint_path,
         metadata=checkpoint_metadata,
+        grad_scaler=grad_scaler,
     )
     print(f"Final model saved to: {final_checkpoint_path}")
 

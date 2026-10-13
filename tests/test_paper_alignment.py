@@ -79,3 +79,32 @@ def test_masked_loss_version_is_part_of_the_resume_fingerprint():
     source = (ROOT / "train.py").read_text(encoding="utf-8")
 
     assert source.count('"masked_loss": MASKED_LOSS_VERSION') == 2
+
+
+def test_training_scales_the_fp16_loss_and_fingerprints_it():
+    source = (ROOT / "train.py").read_text(encoding="utf-8")
+
+    assert "grad_scaler.scale(total_loss).backward()" in source
+    assert "grad_scaler.step(optimizer)" in source and "grad_scaler.update()" in source
+    assert "total_loss.backward()" not in source
+    assert source.count('"loss_scaling": LOSS_SCALING_VERSION') == 2
+    assert source.count("grad_scaler=grad_scaler") == 4  # resume + three checkpoint saves
+
+
+def test_checkpoint_round_trips_the_grad_scaler_state(tmp_path):
+    from utils import load_checkpoint, save_checkpoint
+
+    class _TinyBranch(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.lora_weight = nn.Parameter(torch.zeros(1))
+
+    model = SimpleNamespace(placeholder_token="sks", pipeline=SimpleNamespace(text_encoder=_TinyBranch(), unet=_TinyBranch()))
+    saved = torch.amp.GradScaler("cpu", init_scale=1024.0)
+    save_checkpoint(model, None, 7, tmp_path / "checkpoint_7.pt", grad_scaler=saved)
+
+    restored = torch.amp.GradScaler("cpu", init_scale=1.0)
+    step = load_checkpoint(model, None, tmp_path / "checkpoint_7.pt", grad_scaler=restored)
+
+    assert step == 7
+    assert restored.get_scale() == 1024.0

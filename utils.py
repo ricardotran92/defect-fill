@@ -69,7 +69,7 @@ def _read_checkpoint(path, expected_metadata=None):
     return _validate_checkpoint(checkpoint, path, expected_metadata)
 
 
-def save_checkpoint(model, optimizer, step, path, metadata=None):
+def save_checkpoint(model, optimizer, step, path, metadata=None, grad_scaler=None):
     """Atomically save both LoRA branches and all state needed to resume training."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +91,7 @@ def save_checkpoint(model, optimizer, step, path, metadata=None):
             if "lora" in key
         }),
         "optimizer": _to_cpu(optimizer.state_dict()) if optimizer is not None else None,
+        "grad_scaler": grad_scaler.state_dict() if grad_scaler is not None else None,
         "rng_state": capture_rng_state(),
     }
 
@@ -122,6 +123,7 @@ def load_checkpoint(
     path,
     expected_metadata=None,
     restore_rng=False,
+    grad_scaler=None,
 ) -> int:
     """Restore a validated checkpoint without allocating a second model on the GPU."""
     if not os.path.exists(path):
@@ -138,6 +140,8 @@ def load_checkpoint(
 
     if optimizer is not None and checkpoint.get("optimizer") is not None:
         optimizer.load_state_dict(checkpoint["optimizer"])
+    if grad_scaler is not None and checkpoint.get("grad_scaler"):
+        grad_scaler.load_state_dict(checkpoint["grad_scaler"])
     if restore_rng:
         restore_rng_state(checkpoint.get("rng_state"))
 
