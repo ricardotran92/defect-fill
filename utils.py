@@ -167,6 +167,25 @@ def find_latest_valid_checkpoint(checkpoints_dir, expected_metadata=None):
     return str(latest_path) if latest_path is not None else None
 
 
+def prune_intermediate_checkpoints(checkpoints_dir):
+    """Delete step checkpoints (checkpoint_<N>.pt) once a readable checkpoint_final.pt exists.
+
+    The final checkpoint already holds the LoRA weights, optimizer and RNG state of the last
+    step, so the intermediate files are only needed to resume an unfinished run.
+    Returns the list of removed paths.
+    """
+    checkpoints_dir = Path(checkpoints_dir)
+    final_path = checkpoints_dir / "checkpoint_final.pt"
+    _read_checkpoint(final_path)  # refuse to prune unless the final checkpoint loads
+
+    removed = []
+    for candidate in sorted(checkpoints_dir.glob("checkpoint_*.pt")):
+        if candidate.stem.split("_", 1)[1].isdigit():
+            candidate.unlink()
+            removed.append(str(candidate))
+    return removed
+
+
 def compute_spatial_lpips(lpips_model, img1, img2, mask, smooth_boundary=False):
     """
     Calculates the Perceptual Distance specifically within the masked region using Spatial LPIPS

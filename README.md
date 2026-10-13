@@ -66,6 +66,8 @@ python train.py \
 
 The run directory contains `split_manifest.json`, `train_config.json`, TensorBoard logs, and atomic checkpoints. `--resume_from auto` is the default; rerunning the same command resumes from the newest complete compatible checkpoint. A damaged latest file is skipped automatically.
 
+Intermediate checkpoints (`checkpoint_<step>.pt`, about 37MB each) exist only so an unfinished run can resume. When training completes, `checkpoint_final.pt` is written and the intermediate files are deleted; it holds the same LoRA weights, optimizer and RNG state as the last step. Pass `--keep_intermediate_checkpoints` to keep them. An interrupted run keeps all of its checkpoints.
+
 Key training details (from paper):
 - **Base model**: `sd2-community/stable-diffusion-2-inpainting`
 - **LoRA** on UNet attention layers + text encoder projection matrices
@@ -79,16 +81,18 @@ Generate new synthetic defects on healthy images. The script uses LPIPS to pick 
 ```bash
 python inference.py \
   --checkpoint "runs\hazelnut_hole_paper_2000step\checkpoints\checkpoint_final.pt" \
-  --output_dir "runs\hazelnut_hole_paper_generated" \
+  --output_dir "runs\hazelnut_hole_paper_generated_100" \
   --base_model_path "D:\Novels_Code\stablediffusion\sd2_inpainting" \
   --data_dir "D:\Novels_Code\open_datasets\MVTec" \
   --object_class hazelnut \
   --defect_type hole \
-  --total_images 1000 \
+  --total_images 100 \
   --num_samples 8 \
   --steps 50 \
   --guidance_scale 2.0
 ```
+
+While the code is still changing, generate **100 images** per run for quick comparisons (the paper uses 1000; pass `--total_images 1000` for a final run). Use a new `--output_dir` for each image count: evaluation scores every `*_generated.png` in the directory, and resuming into a folder that already holds 1000 images would mix the two runs.
 
 Inference uses only held-out masks from the saved split manifest, keeps the full 512-by-512 view, applies persistent-noise latent background preservation, and updates `inference_log.json` after every output so generation can also resume.
 
@@ -96,16 +100,16 @@ Inference uses only held-out masks from the saved split manifest, keeps the full
 
 ```bash
 python evaluate.py \
-  --generated_dir "runs\hazelnut_hole_paper_generated" \
+  --generated_dir "runs\hazelnut_hole_paper_generated_100" \
   --split_manifest "runs\hazelnut_hole_paper_2000step\split_manifest.json" \
   --output_csv "runs\paper_protocol_metrics.csv" \
   --object_class hazelnut \
   --defect_type hole \
-  --config_name paper_2000step \
+  --config_name paper_2000step_100img \
   --category_type object
 ```
 
-Evaluation validates the protocol fingerprint and full-view inference log. It reports raw KID, paper-table `KID x 1000`, and reference-clustered intra-cluster LPIPS.
+Evaluation validates the protocol fingerprint and full-view inference log. It reports raw KID, paper-table `KID x 1000`, and reference-clustered intra-cluster LPIPS. With 100 generated images the metrics are noisier than with 1000, so compare runs only at the same image count.
 
 ---
 

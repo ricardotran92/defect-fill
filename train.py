@@ -19,7 +19,12 @@ from protocol import (
     save_split_manifest,
     split_manifest_fingerprint,
 )
-from utils import find_latest_valid_checkpoint, load_checkpoint, save_checkpoint
+from utils import (
+    find_latest_valid_checkpoint,
+    load_checkpoint,
+    prune_intermediate_checkpoints,
+    save_checkpoint,
+)
 # TensorBoard support
 from torch.utils.tensorboard import SummaryWriter
 import datetime
@@ -418,7 +423,12 @@ def train(args):
         metadata=checkpoint_metadata,
     )
     print(f"Final model saved to: {final_checkpoint_path}")
-    
+
+    if not args.keep_intermediate_checkpoints:
+        removed = prune_intermediate_checkpoints(checkpoints_dir)
+        print(f"Removed {len(removed)} intermediate checkpoints; kept {final_checkpoint_path}")
+        log_file.write(f"Removed {len(removed)} intermediate checkpoints after completion\n")
+
     writer.close()
     log_file.close()
     return model
@@ -458,6 +468,11 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Training seed")
     parser.add_argument("--split_seed", type=int, default=42, help="Fixed one-third split seed")
     parser.add_argument("--resume_from", type=str, default="auto")
+    parser.add_argument(
+        "--keep_intermediate_checkpoints",
+        action="store_true",
+        help="Keep checkpoint_<step>.pt files after training completes (default: delete them, keep checkpoint_final.pt)",
+    )
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--dilate_mask", type=str, default="False", help="Whether to dilate masks (True/False)")
