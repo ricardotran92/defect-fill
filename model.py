@@ -91,36 +91,36 @@ class AttentionStoreProcessor(AttnProcessor):
 LATENT_MASK_MODES = ("maxpool", "nearest")
 
 
-def prepare_inpaint_masks(mask: torch.Tensor, latent_size, mode: str = "maxpool") -> Tuple[torch.Tensor, torch.Tensor]:
-    """Map a pixel mask (B, 1, H, W) to the masks the 9-channel inpainting UNet sees.
+def mask_to_latent(mask: torch.Tensor, latent_size, mode: str = "maxpool") -> torch.Tensor:
+    """Pixel mask (B, 1, H, W) -> latent mask (B, 1, h, w).
 
-    Returns (pixel_mask, latent_mask):
-    - pixel_mask blanks the background image B = (1 - pixel_mask) * I;
-    - latent_mask is the mask channel at latent resolution, also used to weight the losses.
-
-    "nearest" (original code) samples one pixel per 8x8 cell, which drops thin mask branches:
-    on hazelnut/hole held-out masks it keeps only ~39% of thin-branch pixels.
-    "maxpool" marks a latent cell whenever any pixel in it is defective, and returns the
-    matching cell-aligned pixel mask so B, the mask channel and the losses cover the same area.
+    The latent mask is the UNet mask channel, weights L_def/L_obj, is the attention target, and
+    selects where background latents are preserved during sampling.
+    "nearest" (original code) samples one pixel per 8x8 cell and drops thin mask branches: on
+    hazelnut/hole held-out masks it keeps only ~39% of thin-branch pixels.
+    "maxpool" marks a cell whenever any of its pixels is defective.
+    The background image B = (1 - M) * I always uses the full-resolution mask M (paper Eq. 4);
+    blanking whole 8x8 cells there made v3 paint block-shaped holes.
     """
     if mode == "nearest":
-        return mask, F.interpolate(mask, size=tuple(latent_size))
+        return F.interpolate(mask, size=tuple(latent_size))
     if mode == "maxpool":
-        latent_mask = F.adaptive_max_pool2d(mask, tuple(latent_size))
-        return F.interpolate(latent_mask, size=mask.shape[-2:]), latent_mask
+        return F.adaptive_max_pool2d(mask, tuple(latent_size))
     raise ValueError(f"Unknown latent mask mode {mode!r}; choose from {LATENT_MASK_MODES}")
 
 
-def composite_background(generated: torch.Tensor, original: torch.Tensor, pixel_mask: torch.Tensor,
-                         feather: int = 2) -> torch.Tensor:
-    """Keep the original pixels outside the inpainted area (all tensors in [0, 1]).
+def composite_background(generated: torch.Tensor, original: torch.Tensor, mask: torch.Tensor,
+                         grow: int = 3, feather: int = 2) -> torch.Tensor:
+    """Keep the original pixels outside the defect (all tensors in [0, 1]).
 
-    Decoding the whole latent replaces every background pixel with its VAE reconstruction,
-    which shifts colours across the image. The mask edge is feathered over `feather` pixels so
-    the generated region blends into the original without a seam; inside the mask the
-    weight stays 1.
+    Decoding the whole latent replaces every background pixel with its VAE reconstruction, which
+    shifts colours across the image. The generated pixels are kept on the defect mask grown by
+    `grow` pixels (so the defect edge is not cut), fading out over `feather` more pixels. The seam
+    follows the defect shape instead of the 8x8 latent grid.
     """
-    weight = pixel_mask.float()
+    weight = mask.float()
+    if grow > 0:
+        weight = F.max_pool2d(weight, 2 * grow + 1, stride=1, padding=grow)
     if feather > 0:
         size = 2 * feather + 1
         blurred = F.avg_pool2d(F.pad(weight, (feather,) * 4, mode="replicate"), size, stride=1)
@@ -409,8 +409,8 @@ class DefectFillModel(nn.Module):
     ) -> torch.Tensor:
         """Generate with the standard Diffusers 9-channel inpainting path.
 
-        latent_mask_mode: how the mask reaches latent resolution (see prepare_inpaint_masks).
-        composite: paste the result back onto the original outside the inpainted area.
+        latent_mask_mode: how the mask reaches latent resolution (see mask_to_latent).
+        composite: keep the original pixels outside the (slightly grown) defect mask.
         """
         if image.ndim == 3:
             image = image.unsqueeze(0)
@@ -440,11 +440,13 @@ class DefectFillModel(nn.Module):
             device=image_latents.device,
             dtype=image_latents.dtype,
         )
-        pixel_mask, mask_latents = prepare_inpaint_masks(
-            mask_for_pipeline.to(device=image_latents.device, dtype=image_latents.dtype),
-            (latent_height, latent_width),
-            latent_mask_mode,
-        )
+        pixel_mask = mask_for_pipeline.to(device=image_latents.device, dtype=image_latents.dtype)
+        mask_latents = mask_to_latent(pixel_mask, (latent_height, latent_width), latent_mask_mode)
+        # The pipeline resizes mask_image with nearest; a cell-aligned mask reproduces mask_latents exactly.
+        cell_mask = F.interpolate(mask_latents, size=pixel_mask.shape[-2:])
+        # B = (1 - M) * I with the full-resolution mask (paper Eq. 4), in the pipeline's [-1, 1] range.
+        # A 3-channel tensor here is VAE-encoded by the pipeline without re-masking it by mask_image.
+        background_image = (image_for_pipeline.to(pixel_mask.device) * 2.0 - 1.0) * (1.0 - pixel_mask.float())
 
         def preserve_background(pipe, step_index, _timestep, callback_kwargs):
             latents = callback_kwargs["latents"]
@@ -466,7 +468,8 @@ class DefectFillModel(nn.Module):
         result = self.pipeline(
             prompt=[prompt] * image_for_pipeline.shape[0],
             image=image_for_pipeline,
-            mask_image=pixel_mask.float(),  # cell-aligned, so the pipeline's resize reproduces mask_latents
+            mask_image=cell_mask.float(),
+            masked_image_latents=background_image,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             generator=generator,

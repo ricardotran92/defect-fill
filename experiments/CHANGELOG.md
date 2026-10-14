@@ -4,7 +4,26 @@ Mỗi phiên bản là một tag `defectfill_02-vN` trên branch `defectfill_02`
 
 Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIPS 0.31.
 
-## v3 — thu mask về latent bằng max-pool, ghép background ở không gian pixel (tag `defectfill_02-v3`)
+## v4 — giữ max-pool cho mask latent, nhưng ảnh nền và đường ghép dùng mask gốc (tag `defectfill_02-v4`)
+
+**Vấn đề của v3** (run `20261014_v3_hazelnut_hole_100img`): `fill_thin` tăng lên 28.6% và `drift_far` = 0 như mong đợi. Tuy nhiên lỗ và đường ghép có **hình khối vuông theo lưới 8×8**.
+
+**Nguyên nhân:** v3 dùng mask căn theo ô latent cho cả hai việc sau:
+- Ảnh nền $B=(1-M)\odot I$ bị khoét cả ô 8×8, nên model học vẽ khối vuông.
+- Đường ghép pixel đi theo mép ô.
+
+**Thay đổi:**
+
+- `model.mask_to_latent` (thay `prepare_inpaint_masks`) chỉ tạo mask latent (max-pool). Mask này dùng cho kênh mask của UNet, cho loss, cho đích của $\mathcal L_{attn}$, và cho bước giữ background.
+- Ảnh nền $B$ dùng **mask gốc độ phân giải đầy đủ**, đúng Eq. 4 của paper, ở cả train và inference. Khi inference, ảnh nền được truyền qua `masked_image_latents` (pipeline tự encode và không khoét lại). `mask_image` truyền vào là mask căn theo ô, để kênh mask của pipeline đúng bằng mask max-pool.
+- `composite_background` giữ pixel sinh ra trên mask gốc nới rộng 3 px, mép mềm 2 px. Đường ghép đi theo hình defect.
+- `train.py` có thêm `background_mask = "pixel"` trong fingerprint resume.
+
+**Kiểm chứng trên PC** (checkpoint v2, cùng cặp ảnh/mask và seed với run ablation `v3infer_v2ckpt` trên server, ảnh 1, 3, 13): hết khối vuông, lỗ tròn, và nét mảnh được vẽ thành vết nứt liền mạch dọc theo mask.
+
+Run: `…_v4_hazelnut_hole_100img`.
+
+## v3 — thu mask về latent bằng max-pool, ghép background ở không gian pixel (tag `defectfill_02-v3` = `ab2144d`)
 
 **Vấn đề** (README baseline: "slender mask branches sometimes not fully converted into defects", "slight yellow-green halos"; đo bằng `tools/mask_fill.py` trên 100 ảnh):
 
@@ -31,7 +50,11 @@ Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIP
 
 **Ghi chú:** paper không nói cách thu mask về latent hay có ghép pixel không. Đây là lựa chọn của repo, theo đúng ý paper: defect phải theo đúng mask, còn nền phải giữ nguyên. Nhãn (mask lưu cùng ảnh sinh) vẫn là mask gốc; vùng sinh lớn hơn mask tối đa 7 px theo lưới 8×8.
 
-Run: `20261015_v3_hazelnut_hole_100img` (train + inference v3), `20261015_v3infer_v2ckpt_hazelnut_hole_100img` (checkpoint v2 + inference v3, để tách hiệu quả của phần inference).
+**Kết quả** (100 ảnh): `fill_thin` 28.6% (baseline 6.2%), `fill_thick` 50.2%, `drift_far` 0. KID×1000 = 0.43 (±4.6) và IC-LPIPS = 0.259 (tâm = ảnh train), ngang baseline trong vùng nhiễu. **Nhược điểm mới:** lỗ và đường ghép bị khối vuông theo lưới 8×8; sửa ở v4.
+
+Ablation checkpoint v2 + inference v3: `fill_thin` 24.1%. Như vậy phần lớn cải thiện đến từ inference; train với max-pool thêm khoảng 4 điểm.
+
+Run: `20261014_v3_hazelnut_hole_100img` (train + inference v3), `20261014_v3infer_v2ckpt_hazelnut_hole_100img` (checkpoint v2 + inference v3, để tách hiệu quả của phần inference).
 
 ## v2 — loss scaling cho backward fp16 (tag `defectfill_02-v2` = `784e8cd`)
 

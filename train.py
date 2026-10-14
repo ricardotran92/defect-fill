@@ -9,7 +9,7 @@ import time
 import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
-from model import LATENT_MASK_MODES, DefectFillModel, prepare_inpaint_masks
+from model import LATENT_MASK_MODES, DefectFillModel, mask_to_latent
 from data_loader import generate_random_box_mask, get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
@@ -37,6 +37,8 @@ MASKED_LOSS_VERSION = "paper_eq5_eq7_mean"
 # losses are ~100x smaller than before, which made those gradients underflow; dynamic loss scaling
 # keeps them representable. Part of the resume fingerprint like MASKED_LOSS_VERSION.
 LOSS_SCALING_VERSION = "dynamic_grad_scaler_v1"
+# B = (1 - M) * I uses the full-resolution mask (paper Eq. 4); v3 blanked whole latent cells ("cell").
+BACKGROUND_MASK = "pixel"
 
 
 def generate_seed_from_timestamp():
@@ -99,6 +101,7 @@ def train(args):
         "masked_loss": MASKED_LOSS_VERSION,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
+        "background_mask": BACKGROUND_MASK,
         "batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "lr_warmup_steps": args.lr_warmup_steps,
@@ -144,6 +147,7 @@ def train(args):
         "masked_loss": MASKED_LOSS_VERSION,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
+        "background_mask": BACKGROUND_MASK,
         "batch_size": args.batch_size,
         "max_train_steps": args.max_train_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
@@ -306,11 +310,11 @@ def train(args):
             if len(defect_masks.shape) == 3:
                 defect_masks = defect_masks.unsqueeze(1)
             
-            # Mask at latent resolution and the matching pixel mask for b = E(I * (1-M))
+            # Mask at latent resolution; b = E(I * (1-M)) uses the full-resolution mask (Eq. 4)
             latent_size = latents.shape[-2:]
-            defect_pixel_masks, mask_latents = prepare_inpaint_masks(defect_masks, latent_size, args.latent_mask_mode)
+            mask_latents = mask_to_latent(defect_masks, latent_size, args.latent_mask_mode)
             with torch.no_grad():
-                masked_images = defect_images * (1 - defect_pixel_masks)
+                masked_images = defect_images * (1 - defect_masks)
                 masked_image_latents = model.pipeline.vae.encode(masked_images).latent_dist.sample()
                 masked_image_latents = masked_image_latents * model.pipeline.vae.config.scaling_factor
             
@@ -338,10 +342,10 @@ def train(args):
             obj_prompts = [f"A {obj_class} with {model.placeholder_token}" for obj_class in object_classes]
             obj_text_embeddings = model.get_text_embeddings(obj_prompts, enable_grad=True)
             
-            random_pixel_masks, random_mask_latents = prepare_inpaint_masks(random_masks, latent_size, args.latent_mask_mode)
+            random_mask_latents = mask_to_latent(random_masks, latent_size, args.latent_mask_mode)
             object_weight_latents = mask_latents  # M' and the attention target use the true defect mask M
             with torch.no_grad():
-                random_masked_images = defect_images * (1 - random_pixel_masks)
+                random_masked_images = defect_images * (1 - random_masks)
                 random_masked_image_latents = model.pipeline.vae.encode(random_masked_images).latent_dist.sample()
                 random_masked_image_latents = random_masked_image_latents * model.pipeline.vae.config.scaling_factor
 
