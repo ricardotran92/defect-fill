@@ -21,7 +21,20 @@ Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIP
 
 **Kiểm chứng trên PC** (checkpoint v2, cùng cặp ảnh/mask và seed với run ablation `v3infer_v2ckpt` trên server, ảnh 1, 3, 13): hết khối vuông, lỗ tròn, và nét mảnh được vẽ thành vết nứt liền mạch dọc theo mask.
 
-Run: `…_v4_hazelnut_hole_100img`.
+**Kết quả** (100 ảnh, run `20261014_v4_hazelnut_hole_100img`):
+
+| | baseline | v3 | v4 |
+|---|---|---|---|
+| `fill_thin` | 6.2% | 28.6% | **22.1%** |
+| `fill_thick` | 46.1% | 50.2% | 43.7% |
+| `drift_far` | 2.25 | 0 | **0** |
+| KID×1000 (±) | −2.21 (4.16) | 0.43 (4.58) | 0.77 (4.74) |
+| IC-LPIPS, tâm = ảnh train | 0.255 | 0.259 | 0.254 |
+| IC-LPIPS, tâm = ảnh held-out | 0.242 | 0.201 | **0.241** |
+
+- Hết khối vuông. Lỗ tròn, mép tự nhiên, bên trong có chiều sâu thay vì chỉ là chấm đen như baseline. IC-LPIPS tâm = ảnh held-out trở lại mức baseline sau khi tụt ở v3.
+- `fill_thin` thấp hơn v3 vì v3 vẽ lại cả ô 8×8 quanh nét mảnh, nên đo được nhiều pixel đổi màu hơn. Tuy vậy v4 vẫn gấp khoảng 3.5 lần baseline.
+- **Còn yếu:** nét mảnh mới chỉ là vệt sáng nhạt dọc theo mask, chưa giống vết nứt tối như defect thật. KID và IC-LPIPS vẫn ngang baseline trong vùng nhiễu, nên chưa có bằng chứng định lượng là v4 gần paper hơn (paper: KID 1.13, IC-LPIPS 0.31 cho hazelnut).
 
 ## v3 — thu mask về latent bằng max-pool, ghép background ở không gian pixel (tag `defectfill_02-v3` = `ab2144d`)
 

@@ -41,6 +41,13 @@
       "commit": "ab2144d",
       "path": "records/20261014_v3infer_v2ckpt_hazelnut_hole_100img/run.json",
       "inference_fingerprint": "7c47db1962dbcf7a"
+    },
+    {
+      "run_id": "20261014_v4_hazelnut_hole_100img",
+      "version": "v4",
+      "commit": "3e90091",
+      "path": "records/20261014_v4_hazelnut_hole_100img/run.json",
+      "inference_fingerprint": "8fc0ac8ccbb70484"
     }
   ]
 }
