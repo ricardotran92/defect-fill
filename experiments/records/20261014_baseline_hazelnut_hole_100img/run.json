@@ -1,0 +1,100 @@
+{
+  "run_id": "20261014_baseline_hazelnut_hole_100img",
+  "version": "baseline",
+  "commit": "751bde5",
+  "recorded_at": "2026-10-14T09:34:36",
+  "notes": "Mốc baseline 100 ảnh, sinh từ checkpoint của run 1000 ảnh (thuật toán c825dff).",
+  "reuses_checkpoint_of": "20261012_baseline_hazelnut_hole_1000img",
+  "train": null,
+  "inference": {
+    "settings": {
+      "background_preservation": "persistent_latent_noise_v1",
+      "batch_size": 4,
+      "checkpoint": "/home/ricardo/projects/defect-fill/runs/hazelnut_hole_paper_2000step/checkpoints/checkpoint_final.pt",
+      "defect_type": "hole",
+      "dilate_mask": false,
+      "guidance_scale": 2.0,
+      "heldout_reference_count": 12,
+      "mask_kernel_size": 3,
+      "num_samples": 8,
+      "object_class": "hazelnut",
+      "protocol_version": "defectfill-paper-v1",
+      "seed": 42,
+      "split_manifest": "/home/ricardo/projects/defect-fill/runs/hazelnut_hole_paper_2000step/split_manifest.json",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "steps": 50,
+      "target_images": 100,
+      "timestamp": "2026-10-14T01:38:30",
+      "view_mode": "full"
+    },
+    "outputs": 100,
+    "lfs_lpips": {
+      "mean": 0.6206552132964134,
+      "min": 0.45368698239326477,
+      "max": 0.760891854763031
+    },
+    "fingerprint": "c1d71e75b3d07e2f"
+  },
+  "metrics": [
+    {
+      "label": "self",
+      "source": "D:/repos/defect-fill/runs/paper_protocol_metrics_server.csv",
+      "config": "baseline_100img",
+      "real_count": 12,
+      "generated_count": 100,
+      "kid_x1000": -2.2063827514648438,
+      "kid_x1000_std": 4.157272591466121,
+      "ic_lpips": 0.24156055893112038,
+      "ic_lpips_cluster_std": 0.0269662144967198,
+      "ic_lpips_valid_clusters": 9,
+      "protocol_version": "defectfill-paper-v1",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "timestamp": "2026-10-14T02:07:23"
+    },
+    {
+      "label": "xeval_new_evaluator",
+      "source": "D:/repos/defectfill_02/runs/compare/xeval_100.csv",
+      "config": "baseline_out__new_eval_100img",
+      "real_count": 12,
+      "generated_count": 100,
+      "kid_x1000": -2.2063827514648438,
+      "kid_x1000_std": 4.157272591466121,
+      "ic_lpips": 0.2552766384893901,
+      "ic_lpips_cluster_std": 0.026404921170197895,
+      "ic_lpips_valid_clusters": 6,
+      "ic_lpips_reference": "train",
+      "protocol_version": "defectfill-paper-v1",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "timestamp": "2026-10-14T02:07:44"
+    }
+  ],
+  "mask_fill": {
+    "n_images": 100,
+    "threshold": 25,
+    "fill_thick": 0.4610464687401873,
+    "fill_thin": 0.061917570064579396,
+    "n_images_with_thin_part": 67,
+    "drift_ring": 6.775355112552643,
+    "drift_far": 2.24740149974823
+  },
+  "perf": [
+    {
+      "start_time": "2026-10-14T01:38:22",
+      "script": "inference.py",
+      "tag": "baseline",
+      "status": "completed",
+      "wall_seconds": 1721.25,
+      "work_done": 100,
+      "throughput_per_s": 0.0581,
+      "gpu_name": "NVIDIA A40",
+      "proc_gpu_mem_max_mib": 8410.0,
+      "git_commit": "751bde5",
+      "output_dir": "runs/hazelnut_hole_paper_generated_100"
+    }
+  ],
+  "artifacts": {
+    "server_root": "kindred:~/projects/defect-fill",
+    "train_dir": null,
+    "generated_dir": "hazelnut_hole_paper_generated_100"
+  }
+}

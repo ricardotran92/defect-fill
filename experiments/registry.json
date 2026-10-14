@@ -1,0 +1,32 @@
+{
+  "runs": [
+    {
+      "run_id": "20261012_baseline_hazelnut_hole_1000img",
+      "version": "baseline",
+      "commit": "c825dff",
+      "path": "records/20261012_baseline_hazelnut_hole_1000img/run.json",
+      "inference_fingerprint": "680309234d0f62bb"
+    },
+    {
+      "run_id": "20261012_v1_hazelnut_hole_1000img",
+      "version": "v1",
+      "commit": "296ccbc",
+      "path": "records/20261012_v1_hazelnut_hole_1000img/run.json",
+      "inference_fingerprint": "12235f0594f7d4b0"
+    },
+    {
+      "run_id": "20261014_baseline_hazelnut_hole_100img",
+      "version": "baseline",
+      "commit": "751bde5",
+      "path": "records/20261014_baseline_hazelnut_hole_100img/run.json",
+      "inference_fingerprint": "c1d71e75b3d07e2f"
+    },
+    {
+      "run_id": "20261014_v2_hazelnut_hole_100img",
+      "version": "v2",
+      "commit": "784e8cd",
+      "path": "records/20261014_v2_hazelnut_hole_100img/run.json",
+      "inference_fingerprint": "11e1bd8bbc78806b"
+    }
+  ]
+}
