@@ -27,6 +27,20 @@
       "commit": "784e8cd",
       "path": "records/20261014_v2_hazelnut_hole_100img/run.json",
       "inference_fingerprint": "11e1bd8bbc78806b"
+    },
+    {
+      "run_id": "20261014_v3_hazelnut_hole_100img",
+      "version": "v3",
+      "commit": "ab2144d",
+      "path": "records/20261014_v3_hazelnut_hole_100img/run.json",
+      "inference_fingerprint": "056c6656256e501e"
+    },
+    {
+      "run_id": "20261014_v3infer_v2ckpt_hazelnut_hole_100img",
+      "version": "v3",
+      "commit": "ab2144d",
+      "path": "records/20261014_v3infer_v2ckpt_hazelnut_hole_100img/run.json",
+      "inference_fingerprint": "7c47db1962dbcf7a"
     }
   ]
 }

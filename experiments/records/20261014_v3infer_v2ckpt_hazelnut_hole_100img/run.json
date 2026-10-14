@@ -1,0 +1,103 @@
+{
+  "run_id": "20261014_v3infer_v2ckpt_hazelnut_hole_100img",
+  "version": "v3",
+  "commit": "ab2144d",
+  "recorded_at": "2026-10-14T12:08:37",
+  "notes": "Ablation: checkpoint v2 + inference v3. fill_thin 24%: phần lớn cải thiện đến từ inference, train max-pool thêm khoảng 4 điểm.",
+  "reuses_checkpoint_of": "20261014_v2_hazelnut_hole_100img",
+  "train": null,
+  "inference": {
+    "settings": {
+      "background_preservation": "persistent_latent_noise_v1",
+      "batch_size": 4,
+      "checkpoint": "/home/ricardo/projects/defectfill_02/runs/hazelnut_hole_paper_2000step_v2/checkpoints/checkpoint_final.pt",
+      "composite": true,
+      "defect_type": "hole",
+      "dilate_mask": false,
+      "guidance_scale": 2.0,
+      "heldout_reference_count": 12,
+      "latent_mask_mode": "maxpool",
+      "lfs_mask": "binary",
+      "mask_kernel_size": 3,
+      "num_samples": 8,
+      "object_class": "hazelnut",
+      "protocol_version": "defectfill-paper-v1",
+      "seed": 42,
+      "split_manifest": "/home/ricardo/projects/defectfill_02/runs/hazelnut_hole_paper_2000step_v2/split_manifest.json",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "steps": 50,
+      "target_images": 100,
+      "timestamp": "2026-10-14T11:34:27",
+      "view_mode": "full"
+    },
+    "outputs": 100,
+    "lfs_lpips": {
+      "mean": 0.6386025881767273,
+      "min": 0.5501358509063721,
+      "max": 0.801839292049408
+    },
+    "fingerprint": "7c47db1962dbcf7a"
+  },
+  "metrics": [
+    {
+      "label": "self",
+      "source": "runs/paper_protocol_metrics_server.csv",
+      "config": "defectfill_02_v3infer_v2ckpt_100img",
+      "real_count": 12,
+      "generated_count": 100,
+      "kid_x1000": -0.42766571044921875,
+      "kid_x1000_std": 4.4973129331567545,
+      "ic_lpips": 0.2593314223812996,
+      "ic_lpips_cluster_std": 0.018888005006723226,
+      "ic_lpips_valid_clusters": 6,
+      "ic_lpips_reference": "train",
+      "protocol_version": "defectfill-paper-v1",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "timestamp": "2026-10-14T12:03:20"
+    },
+    {
+      "label": "xeval_baseline_evaluator",
+      "source": "D:/repos/defect-fill/runs/compare/xeval_100.csv",
+      "config": "v3infer_v2ckpt_out__baseline_eval_100img",
+      "real_count": 12,
+      "generated_count": 100,
+      "kid_x1000": -0.42766571044921875,
+      "kid_x1000_std": 4.4973129331567545,
+      "ic_lpips": 0.2208328692451064,
+      "ic_lpips_cluster_std": 0.06636771325946708,
+      "ic_lpips_valid_clusters": 10,
+      "protocol_version": "defectfill-paper-v1",
+      "split_manifest_fingerprint": "5c8ec4ab37341b5b36d16dc4fdad12976b8e7ca20672966fff84a78c227fa6b3",
+      "timestamp": "2026-10-14T12:03:41"
+    }
+  ],
+  "mask_fill": {
+    "n_images": 100,
+    "threshold": 25,
+    "fill_thick": 0.5059508385072299,
+    "fill_thin": 0.24117631367434386,
+    "n_images_with_thin_part": 67,
+    "drift_ring": 8.00219786643982,
+    "drift_far": 0.0
+  },
+  "perf": [
+    {
+      "start_time": "2026-10-14T11:34:20",
+      "script": "inference.py",
+      "tag": "defectfill_02_v3infer_v2ckpt",
+      "status": "completed",
+      "wall_seconds": 1721.81,
+      "work_done": 100,
+      "throughput_per_s": 0.0581,
+      "gpu_name": "NVIDIA A40",
+      "proc_gpu_mem_max_mib": 8422.0,
+      "git_commit": "ab2144d",
+      "output_dir": "runs/hazelnut_hole_paper_generated_v3infer_v2ckpt_100"
+    }
+  ],
+  "artifacts": {
+    "server_root": "kindred:~/projects/defectfill_02",
+    "train_dir": null,
+    "generated_dir": "hazelnut_hole_paper_generated_v3infer_v2ckpt_100"
+  }
+}
