@@ -12,7 +12,7 @@ from torchvision import transforms
 from torchvision.utils import save_image
 from tqdm import tqdm
 
-from model import DefectFillModel
+from model import LATENT_MASK_MODES, DefectFillModel
 from protocol import PROTOCOL_VERSION, load_split_manifest, split_manifest_fingerprint
 from utils import compute_spatial_lpips_batch, load_checkpoint
 
@@ -85,6 +85,8 @@ def generate_and_select_batch(
     guidance_scale=2.0,
     batch_size=4,
     seed=42,
+    latent_mask_mode="maxpool",
+    composite=True,
 ):
     """Generate paper-style candidates and retain the strongest masked LPIPS change."""
     prompt = f"A {object_class} with {model.placeholder_token}"
@@ -101,6 +103,8 @@ def generate_and_select_batch(
             num_inference_steps=steps,
             guidance_scale=guidance_scale,
             generator=generator,
+            latent_mask_mode=latent_mask_mode,
+            composite=composite,
         )
         all_samples.append(generated * 2.0 - 1.0)
 
@@ -206,6 +210,8 @@ def inference(args):
         "mask_kernel_size": args.mask_kernel_size,
         "background_preservation": "persistent_latent_noise_v1",
         "lfs_mask": "binary",
+        "latent_mask_mode": args.latent_mask_mode,
+        "composite": args.composite,
     }
     inference_log = _load_existing_log(log_path, resume_signature) or {
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -250,6 +256,8 @@ def inference(args):
                 guidance_scale=args.guidance_scale,
                 batch_size=args.batch_size,
                 seed=args.seed + output_index * args.num_samples,
+                latent_mask_mode=args.latent_mask_mode,
+                composite=args.composite,
             )
 
         save_image((defect_image.float() + 1.0) / 2.0, generated_path)
@@ -297,6 +305,19 @@ if __name__ == "__main__":
     parser.add_argument("--lora_dropout", type=float, default=0.1)
     parser.add_argument("--dilate_mask", type=str, default="False")
     parser.add_argument("--mask_kernel_size", type=int, default=3)
+    parser.add_argument(
+        "--latent_mask_mode",
+        choices=LATENT_MASK_MODES,
+        default="maxpool",
+        help="Mask downsampling to latent resolution: maxpool keeps thin mask branches; nearest = original code",
+    )
+    parser.add_argument(
+        "--composite",
+        choices=("on", "off"),
+        default="on",
+        help="on: keep original pixels outside the inpainted area (no VAE colour drift); off = original code",
+    )
     args = parser.parse_args()
     args.dilate_mask = args.dilate_mask.lower() == "true"
+    args.composite = args.composite == "on"
     inference(args)

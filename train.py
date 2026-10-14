@@ -9,7 +9,7 @@ import time
 import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
-from model import DefectFillModel
+from model import LATENT_MASK_MODES, DefectFillModel, prepare_inpaint_masks
 from data_loader import generate_random_box_mask, get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
@@ -98,6 +98,7 @@ def train(args):
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
         "loss_scaling": LOSS_SCALING_VERSION,
+        "latent_mask_mode": args.latent_mask_mode,
         "batch_size": args.batch_size,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "lr_warmup_steps": args.lr_warmup_steps,
@@ -142,6 +143,7 @@ def train(args):
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
         "loss_scaling": LOSS_SCALING_VERSION,
+        "latent_mask_mode": args.latent_mask_mode,
         "batch_size": args.batch_size,
         "max_train_steps": args.max_train_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
@@ -304,13 +306,13 @@ def train(args):
             if len(defect_masks.shape) == 3:
                 defect_masks = defect_masks.unsqueeze(1)
             
-            # Build masked_image_latents: b = E(I * (1-M))
+            # Mask at latent resolution and the matching pixel mask for b = E(I * (1-M))
+            latent_size = latents.shape[-2:]
+            defect_pixel_masks, mask_latents = prepare_inpaint_masks(defect_masks, latent_size, args.latent_mask_mode)
             with torch.no_grad():
-                masked_images = defect_images * (1 - defect_masks)
+                masked_images = defect_images * (1 - defect_pixel_masks)
                 masked_image_latents = model.pipeline.vae.encode(masked_images).latent_dist.sample()
                 masked_image_latents = masked_image_latents * model.pipeline.vae.config.scaling_factor
-            
-            mask_latents = F.interpolate(defect_masks, size=(latents.shape[2], latents.shape[3]))
             
             # Forward pass (9-channel input)
             outputs = model(
@@ -336,13 +338,12 @@ def train(args):
             obj_prompts = [f"A {obj_class} with {model.placeholder_token}" for obj_class in object_classes]
             obj_text_embeddings = model.get_text_embeddings(obj_prompts, enable_grad=True)
             
+            random_pixel_masks, random_mask_latents = prepare_inpaint_masks(random_masks, latent_size, args.latent_mask_mode)
+            object_weight_latents = mask_latents  # M' and the attention target use the true defect mask M
             with torch.no_grad():
-                random_masked_images = defect_images * (1 - random_masks)
+                random_masked_images = defect_images * (1 - random_pixel_masks)
                 random_masked_image_latents = model.pipeline.vae.encode(random_masked_images).latent_dist.sample()
                 random_masked_image_latents = random_masked_image_latents * model.pipeline.vae.config.scaling_factor
-
-            random_mask_latents = F.interpolate(random_masks, size=(latents.shape[2], latents.shape[3]))
-            object_weight_latents = F.interpolate(defect_masks, size=(latents.shape[2], latents.shape[3]))
 
             obj_outputs = model(
                 noisy_latents=noisy_latents,
@@ -482,6 +483,12 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Training seed")
     parser.add_argument("--split_seed", type=int, default=42, help="Fixed one-third split seed")
     parser.add_argument("--resume_from", type=str, default="auto")
+    parser.add_argument(
+        "--latent_mask_mode",
+        choices=LATENT_MASK_MODES,
+        default="maxpool",
+        help="Mask downsampling to latent resolution: maxpool keeps thin mask branches; nearest = original code",
+    )
     parser.add_argument(
         "--keep_intermediate_checkpoints",
         action="store_true",
