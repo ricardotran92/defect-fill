@@ -18,7 +18,18 @@ Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIP
 
 **Ghi chú:** paper không có trọng số riêng cho phần mảnh. Đây là cách bù cho việc tập train ít ví dụ vết nứt, không phải tái hiện paper.
 
-Run: `…_v7_hazelnut_hole_100img_priority` (cùng kế hoạch 100 ảnh ưu tiên 3:1).
+**Kết quả** (16/10/2026, 17:30 → 19:15, run `20261016_v7_hazelnut_hole_100img_priority`; hình `figures/20261016_thin_masks_baseline_v4_v5_v6_v7.jpg`):
+
+| 100 ảnh, kế hoạch ưu tiên | v6 | **v7** |
+|---|---|---|
+| `fill_thin` | 6.0% | 5.3% |
+| `fill_thick` | 40.9% | 36.3% |
+| KID×1000 (±) | −1.77 (4.53) | 1.45 (5.64) |
+| IC-LPIPS train / held-out | 0.252 / 0.212 | 0.248 / 0.211 |
+| $\mathcal L_{def}$ / $\mathcal L_{attn}$ cuối | 0.117 / 0.019 | 0.123 / 0.020 |
+
+- **Không cải thiện.** Lỗ sáng hơn v6 (lòng màu be thay vì tối sâu), và vết nứt rõ vẫn không có. Chỉ một mẫu có vệt đỏ nhạt dọc nhánh, nhưng mẫu đó lại mất lỗ.
+- Tăng trọng số cho số ít pixel mảnh trong 6 ảnh train không dạy được model vẽ vết nứt: các pixel đó chủ yếu là mép lỗ và vài vệt ngắn, không phải vết nứt dài. Bước tiếp theo kiểm tra trực tiếp giả thuyết dữ liệu bằng một split có ảnh train chứa vết nứt (`diagnostics/20261016_split_thin_share`, run `v6split113`).
 
 ## v6 — chuẩn hóa $\mathcal L_{attn}$ theo vùng trong / ngoài mask (tag `defectfill_02-v6`)
 

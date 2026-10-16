@@ -76,6 +76,13 @@
       "commit": "09582e1",
       "path": "records/20261016_v6_hazelnut_hole_100img_priority/run.json",
       "inference_fingerprint": "271ffd9434080e23"
+    },
+    {
+      "run_id": "20261016_v7_hazelnut_hole_100img_priority",
+      "version": "v7",
+      "commit": "5e55f3d",
+      "path": "records/20261016_v7_hazelnut_hole_100img_priority/run.json",
+      "inference_fingerprint": "9c39f97040a1f868"
     }
   ]
 }
