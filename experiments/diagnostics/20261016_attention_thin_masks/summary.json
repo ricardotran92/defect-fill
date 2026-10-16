@@ -1,0 +1,355 @@
+{
+  "prompt": "A hazelnut with sks",
+  "timesteps": [
+    200,
+    500,
+    800
+  ],
+  "cases": [
+    "good0_006_mask.png",
+    "good1_006_mask.png",
+    "good0_010_mask.png",
+    "good1_010_mask.png",
+    "good0_011_mask.png",
+    "good1_011_mask.png",
+    "good0_014_mask.png",
+    "good1_014_mask.png",
+    "good0_016_mask.png",
+    "good1_016_mask.png"
+  ],
+  "regions": {
+    "thick": "7x7 opening of the mask",
+    "thin": "mask minus thick",
+    "background": "farther than 32 px from the mask"
+  },
+  "checkpoints": {
+    "baseline": {
+      "path": "/home/ricardo/projects/defect-fill/runs/hazelnut_hole_paper_2000step/checkpoints/checkpoint_final.pt",
+      "mean": {
+        "thick": 0.03975686803460121,
+        "thin": 0.03345466908067465,
+        "background": 0.013867347873747349,
+        "thin_over_thick": 0.8422908694551235,
+        "mask_over_background": 2.7695481724013686
+      },
+      "per_case": [
+        {
+          "thick": 0.041730523109436035,
+          "thin": 0.033773235976696014,
+          "background": 0.01399761438369751,
+          "thin_over_thick": 0.8093173404063864,
+          "mask_over_background": 2.8078008099096836
+        },
+        {
+          "thick": 0.04086895287036896,
+          "thin": 0.033079784363508224,
+          "background": 0.013381816446781158,
+          "thin_over_thick": 0.8094111064805851,
+          "mask_over_background": 2.876458804383108
+        },
+        {
+          "thick": 0.04235266149044037,
+          "thin": 0.03642973303794861,
+          "background": 0.014305628836154938,
+          "thin_over_thick": 0.8601521546921282,
+          "mask_over_background": 2.8694481812893184
+        },
+        {
+          "thick": 0.04283975064754486,
+          "thin": 0.03637434542179108,
+          "background": 0.013641578145325184,
+          "thin_over_thick": 0.8490792983613149,
+          "mask_over_background": 3.0360836872666543
+        },
+        {
+          "thick": 0.039128806442022324,
+          "thin": 0.03424670547246933,
+          "background": 0.014325182884931564,
+          "thin_over_thick": 0.8752300053724648,
+          "mask_over_background": 2.6420583936025164
+        },
+        {
+          "thick": 0.03871312364935875,
+          "thin": 0.0345391109585762,
+          "background": 0.013634844683110714,
+          "thin_over_thick": 0.8921809376947115,
+          "mask_over_background": 2.7589644831804367
+        },
+        {
+          "thick": 0.03722972050309181,
+          "thin": 0.032814718782901764,
+          "background": 0.014048321172595024,
+          "thin_over_thick": 0.8814119026270048,
+          "mask_over_background": 2.6025556424009912
+        },
+        {
+          "thick": 0.036506399512290955,
+          "thin": 0.033094171434640884,
+          "background": 0.013400190509855747,
+          "thin_over_thick": 0.9065306871333273,
+          "mask_over_background": 2.685781304243122
+        },
+        {
+          "thick": 0.03920852392911911,
+          "thin": 0.02976575680077076,
+          "background": 0.0142069635912776,
+          "thin_over_thick": 0.759165452251686,
+          "mask_over_background": 2.6653918608609555
+        },
+        {
+          "thick": 0.038990218192338943,
+          "thin": 0.03042912855744362,
+          "background": 0.013731338083744049,
+          "thin_over_thick": 0.780429809531626,
+          "mask_over_background": 2.7509385568768994
+        }
+      ]
+    },
+    "v4": {
+      "path": "runs/hazelnut_hole_paper_2000step_v4/checkpoints/checkpoint_final.pt",
+      "mean": {
+        "thick": 0.1748901441693306,
+        "thin": 0.15141285881400107,
+        "background": 0.005592728778719902,
+        "thin_over_thick": 2.419409902059415,
+        "mask_over_background": 36.27261120397946
+      },
+      "per_case": [
+        {
+          "thick": 0.42709407210350037,
+          "thin": 0.2874352037906647,
+          "background": 0.003733912017196417,
+          "thin_over_thick": 0.6730020914947485,
+          "mask_over_background": 102.96972145091704
+        },
+        {
+          "thick": 0.28429093956947327,
+          "thin": 0.2514205574989319,
+          "background": 0.005525585263967514,
+          "thin_over_thick": 0.8843776656395738,
+          "mask_over_background": 49.63477414322342
+        },
+        {
+          "thick": 0.2191401571035385,
+          "thin": 0.28000128269195557,
+          "background": 0.003925030119717121,
+          "thin_over_thick": 1.277726941482759,
+          "mask_over_background": 59.24367696143927
+        },
+        {
+          "thick": 0.4773116409778595,
+          "thin": 0.04868192970752716,
+          "background": 0.0061094993725419044,
+          "thin_over_thick": 0.10199191791717754,
+          "mask_over_background": 62.687239149241044
+        },
+        {
+          "thick": 0.20336931943893433,
+          "thin": 0.20020778477191925,
+          "background": 0.004272653721272945,
+          "thin_over_thick": 0.984454220156033,
+          "mask_over_background": 47.40376923038359
+        },
+        {
+          "thick": 0.01108207181096077,
+          "thin": 0.10551895201206207,
+          "background": 0.005488723516464233,
+          "thin_over_thick": 9.521590710836048,
+          "mask_over_background": 6.53302433607897
+        },
+        {
+          "thick": 0.09185951203107834,
+          "thin": 0.21229350566864014,
+          "background": 0.004329942632466555,
+          "thin_over_thick": 2.3110672044155427,
+          "mask_over_background": 25.42447438457959
+        },
+        {
+          "thick": 0.020031029358506203,
+          "thin": 0.10630161315202713,
+          "background": 0.004756270442157984,
+          "thin_over_thick": 5.306847254301787,
+          "mask_over_background": 6.956624785968062
+        },
+        {
+          "thick": 0.0064594801515340805,
+          "thin": 0.012968264520168304,
+          "background": 0.010658173821866512,
+          "thin_over_thick": 2.007632845978857,
+          "mask_over_background": 0.6928102073666257
+        },
+        {
+          "thick": 0.008263219147920609,
+          "thin": 0.009299494326114655,
+          "background": 0.007127496879547834,
+          "thin_over_thick": 1.1254081683716228,
+          "mask_over_background": 1.1799973905969894
+        }
+      ]
+    },
+    "v5": {
+      "path": "runs/hazelnut_hole_paper_2000step_v5/checkpoints/checkpoint_final.pt",
+      "mean": {
+        "thick": 0.14315508902072907,
+        "thin": 0.0661198504269123,
+        "background": 0.01188333723694086,
+        "thin_over_thick": 0.46169201021480194,
+        "mask_over_background": 10.680171891872066
+      },
+      "per_case": [
+        {
+          "thick": 0.16622379422187805,
+          "thin": 0.07383693754673004,
+          "background": 0.01178364921361208,
+          "thin_over_thick": 0.44420197416605334,
+          "mask_over_background": 11.714006855667655
+        },
+        {
+          "thick": 0.13487613201141357,
+          "thin": 0.0705188438296318,
+          "background": 0.01118987612426281,
+          "thin_over_thick": 0.5228415345100815,
+          "mask_over_background": 10.298482951115094
+        },
+        {
+          "thick": 0.18202252686023712,
+          "thin": 0.08414093405008316,
+          "background": 0.01170419529080391,
+          "thin_over_thick": 0.46225560924494435,
+          "mask_over_background": 13.711558997154835
+        },
+        {
+          "thick": 0.18546941876411438,
+          "thin": 0.07845769077539444,
+          "background": 0.011531169526278973,
+          "thin_over_thick": 0.4230222496959421,
+          "mask_over_background": 14.04198183111754
+        },
+        {
+          "thick": 0.1689855456352234,
+          "thin": 0.09171268343925476,
+          "background": 0.012008837424218655,
+          "thin_over_thick": 0.542725018844086,
+          "mask_over_background": 12.38360586397605
+        },
+        {
+          "thick": 0.17032961547374725,
+          "thin": 0.07129454612731934,
+          "background": 0.011602685786783695,
+          "thin_over_thick": 0.4185681152923632,
+          "mask_over_background": 12.44085829121479
+        },
+        {
+          "thick": 0.12955158948898315,
+          "thin": 0.07038472592830658,
+          "background": 0.012233282439410686,
+          "thin_over_thick": 0.5432949623075986,
+          "mask_over_background": 9.858109243374406
+        },
+        {
+          "thick": 0.13093434274196625,
+          "thin": 0.05674781650304794,
+          "background": 0.011199845932424068,
+          "thin_over_thick": 0.4334066625658441,
+          "mask_over_background": 10.688239055166903
+        },
+        {
+          "thick": 0.09788864105939865,
+          "thin": 0.030466943979263306,
+          "background": 0.01274167001247406,
+          "thin_over_thick": 0.31124085133407886,
+          "mask_over_background": 6.9308812402128925
+        },
+        {
+          "thick": 0.06526928395032883,
+          "thin": 0.033637382090091705,
+          "background": 0.012838160619139671,
+          "thin_over_thick": 0.5153631241870279,
+          "mask_over_background": 4.733994589720469
+        }
+      ]
+    },
+    "v6": {
+      "path": "runs/hazelnut_hole_paper_2000step_v6/checkpoints/checkpoint_final.pt",
+      "mean": {
+        "thick": 0.7321682721376419,
+        "thin": 0.5467545360326767,
+        "background": 0.04659019373357296,
+        "thin_over_thick": 0.7607397688442268,
+        "mask_over_background": 15.511823349245471
+      },
+      "per_case": [
+        {
+          "thick": 0.8960143327713013,
+          "thin": 0.7148675322532654,
+          "background": 0.04225299879908562,
+          "thin_over_thick": 0.7978304655487338,
+          "mask_over_background": 19.89778105717205
+        },
+        {
+          "thick": 0.6573726534843445,
+          "thin": 0.5440798997879028,
+          "background": 0.04523221030831337,
+          "thin_over_thick": 0.827658249706702,
+          "mask_over_background": 13.769029286862079
+        },
+        {
+          "thick": 0.9059576988220215,
+          "thin": 0.6059169769287109,
+          "background": 0.04161008074879646,
+          "thin_over_thick": 0.6688137621839951,
+          "mask_over_background": 20.185754915050385
+        },
+        {
+          "thick": 0.8763717412948608,
+          "thin": 0.5612611174583435,
+          "background": 0.045023512095212936,
+          "thin_over_thick": 0.6404372608238901,
+          "mask_over_background": 17.924603258985858
+        },
+        {
+          "thick": 0.9215206503868103,
+          "thin": 0.6450937390327454,
+          "background": 0.04235178232192993,
+          "thin_over_thick": 0.7000317776513916,
+          "mask_over_background": 20.046355966194962
+        },
+        {
+          "thick": 0.8942187428474426,
+          "thin": 0.5480865240097046,
+          "background": 0.04391389340162277,
+          "thin_over_thick": 0.6129222054376133,
+          "mask_over_background": 18.29511014802623
+        },
+        {
+          "thick": 0.6460289359092712,
+          "thin": 0.6331218481063843,
+          "background": 0.04011506587266922,
+          "thin_over_thick": 0.980020882834419,
+          "mask_over_background": 16.055702726129812
+        },
+        {
+          "thick": 0.6834384202957153,
+          "thin": 0.5864309072494507,
+          "background": 0.04312393441796303,
+          "thin_over_thick": 0.8580596142015389,
+          "mask_over_background": 15.507788230348792
+        },
+        {
+          "thick": 0.4990657567977905,
+          "thin": 0.34489724040031433,
+          "background": 0.05765937268733978,
+          "thin_over_thick": 0.6910857651571122,
+          "mask_over_background": 8.275587130487368
+        },
+        {
+          "thick": 0.34169378876686096,
+          "thin": 0.28378957509994507,
+          "background": 0.06461908668279648,
+          "thin_over_thick": 0.8305377048968714,
+          "mask_over_background": 5.160520773197178
+        }
+      ]
+    }
+  }
+}
