@@ -303,40 +303,39 @@ class DefectFillModel(nn.Module):
             return torch.tensor(0.0, device=mask_latents.device)
         
         for b in range(batch_size):
-            token_idx = self.defect_token_indices[b] if b < len(self.defect_token_indices) else -1
-            if token_idx < 0:
-                continue
-            
             mask = mask_latents[b].squeeze(0)  # (H, W)
-            resized_attention_maps = []
-            
-            for name, attn_map in decoder_attention_maps.items():
-                try:
-                    if b < attn_map.shape[0]:
-                        # Average attention across all heads for the specific token
-                        defect_attn = attn_map[b, :, :, token_idx].mean(dim=0)
-                        
-                        seq_len = defect_attn.shape[0]
-                        h = int(math.sqrt(seq_len))
-                        if h * h == seq_len:
-                            defect_attn = defect_attn.reshape(h, h)
-                            resized_attn = F.interpolate(
-                                defect_attn.unsqueeze(0).unsqueeze(0),
-                                size=mask.shape,
-                                mode='bilinear',
-                                align_corners=False
-                            ).squeeze()
-                            resized_attention_maps.append(resized_attn)
-                except Exception:
-                    continue
-            
-            if resized_attention_maps:
-                avg_attn_map = torch.stack(resized_attention_maps).mean(dim=0)
+            avg_attn_map = self.token_attention_map(b, mask.shape)
+            if avg_attn_map is not None:
                 # L2 Loss: ||AttentionMap - Mask||^2
                 sample_loss = attention_mask_loss(avg_attn_map, mask, getattr(self, "attention_loss_norm", "region"))
                 attention_loss += sample_loss
         
         return attention_loss / batch_size if batch_size > 0 else attention_loss
+
+    def token_attention_map(self, sample_index: int, size) -> Optional[torch.Tensor]:
+        """Cross-attention of the [V*] token for one sample: heads averaged, every decoder (up_blocks)
+        layer resized to `size` (bilinear), then layers averaged. None when unavailable.
+
+        Uses the maps stored by AttentionStoreProcessor during the last UNet forward; shared by the
+        attention loss and tools/attention_probe.py.
+        """
+        token_idx = self.defect_token_indices[sample_index] if sample_index < len(self.defect_token_indices) else -1
+        if token_idx < 0:
+            return None
+        resized_attention_maps = []
+        for name, attn_map in self.attention_maps.items():
+            if "up_blocks" not in name or sample_index >= attn_map.shape[0]:
+                continue
+            defect_attn = attn_map[sample_index, :, :, token_idx].mean(dim=0)  # average over heads
+            side = int(math.sqrt(defect_attn.shape[0]))
+            if side * side != defect_attn.shape[0]:
+                continue
+            resized_attention_maps.append(F.interpolate(
+                defect_attn.reshape(1, 1, side, side), size=tuple(size), mode="bilinear", align_corners=False,
+            ).squeeze())
+        if not resized_attention_maps:
+            return None
+        return torch.stack(resized_attention_maps).mean(dim=0)
 
     def get_text_embeddings(self, prompts, enable_grad=True):
         """Encodes prompts and locates the precise index of the <defect> token"""
