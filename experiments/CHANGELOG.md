@@ -25,7 +25,30 @@ Nhánh object (tái tạo nền quanh box ngẫu nhiên) lấn át, nên model "
 - `train.py --masked_loss_norm mask|total`, có trong fingerprint resume. `total` là cách của v2–v4.
 - Paper không nói cách chuẩn hóa. Đây là lựa chọn theo bằng chứng thực nghiệm; nó thay thế cách đọc "sát chữ" đã chọn ở v1.
 
-Run: `…_v5_hazelnut_hole_100img`.
+**Kết quả** (16/10/2026, kế hoạch 100 ảnh ưu tiên mask nét mảnh 3:1 của v5.1 `71e1332`; ba bộ dùng cùng cặp ảnh/mask/seed; hình: `figures/20261016_thin_masks_baseline_v4_v5.jpg`):
+
+| 100 ảnh, kế hoạch ưu tiên | baseline (checkpoint gốc) | v4 | v5 |
+|---|---|---|---|
+| Nét mảnh được vẽ (`fill_thin`) | 5.8% | **21.0%** | 3.3% |
+| Phần dày được vẽ (`fill_thick`) | 45.4% | 46.5% | 33.3% |
+| Nền xa mask đổi (`drift_far`) | 2.17 | 0 | 0 |
+| KID×1000 (±) | −1.20 (4.23) | 2.30 (5.30) | 0.94 (5.47) |
+| IC-LPIPS, tâm = ảnh train | 0.249 | 0.249 | 0.247 |
+| $\mathcal L_{def}$ khi train (đầu → cuối) | 1.16 → 0.52 | 0.0049 → 0.0023 | 0.263 → 0.117 |
+| $\mathcal L_{attn}$ khi train (đầu → cuối) | 0.0134 → 0.0133 | **0.0091 → 0.0029** | 0.0181 → 0.0132 |
+
+- **Giả thuyết đúng một nửa.** Khi $\mathcal L_{def}$ đủ mạnh, lỗ **tối, sắc, tròn**, giống ảnh thật và Hình 6 hơn v4. Nhưng nét mảnh **không** được vẽ, và lỗ thường nhỏ hơn mask.
+- **Nguyên nhân phần còn thiếu:** $\mathcal L_{attn}$ mới là thứ kéo defect theo đúng hình mask (paper Hình 7: bỏ $\mathcal L_{attn}$ thì "incomplete hole"). $\mathcal L_{attn}$ được tính trung bình trên **toàn ảnh**, nên độ lớn chỉ cỡ diện tích mask (khoảng 0.013). Ở baseline và v5 nó bị lấn át và gần như không giảm. Ở v4 nó học mạnh, nên mới có vệt theo nét mảnh, nhưng khi đó $\mathcal L_{def}$ quá yếu nên defect nhạt.
+- KID và IC-LPIPS vẫn trong vùng nhiễu, không phân biệt được ba bộ.
+
+**Hướng tiếp theo (v6, chưa chạy):** chuẩn hóa $\mathcal L_{attn}$ theo vùng, cùng logic với v5. Lấy trung bình $(A-1)^2$ **trong mask** cộng trung bình $A^2$ **ngoài mask**, thay cho trung bình trên toàn ảnh. Khi đó $\mathcal L_{attn}$ có độ lớn ngang $\mathcal L_{def}$, nên defect vừa tối/sắc (nhờ $\mathcal L_{def}$) vừa phủ đúng hình mask và nét mảnh (nhờ $\mathcal L_{attn}$).
+
+Run: `20261016_v5_hazelnut_hole_100img_priority`, cùng hai bộ so sánh `20261016_v4ckpt_…_priority` và `20261016_baselineckpt_…_priority`.
+
+### v5.1 (`71e1332`, tag `defectfill_02-v5.1`), không đổi thuật toán
+
+- `inference.py --priority_masks` / `--priority_ratio`: kế hoạch sinh ảnh ưu tiên mask chỉ định.
+- Script server có thêm `GEN_SUFFIX` và `CKPT_RUN`.
 
 ## v4 — giữ max-pool cho mask latent, nhưng ảnh nền và đường ghép dùng mask gốc (tag `defectfill_02-v4`)
 

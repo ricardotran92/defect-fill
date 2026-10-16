@@ -119,7 +119,9 @@ def regenerate_results(registry_dir, registry):
         "",
         "Chỉ so các dòng có cùng số ảnh, và chỉ so IC-LPIPS khi cùng tâm cluster (`ref`). "
         "`fill_thin`/`fill_thick`: tỉ lệ pixel trong phần mảnh/dày của mask được vẽ lại; "
-        "`drift_far`: thay đổi trung bình (0–255) ở nền xa mask, lý tưởng là 0. Định nghĩa trong `tools/mask_fill.py`.",
+        "`drift_far`: thay đổi trung bình (0–255) ở nền xa mask, lý tưởng là 0. Định nghĩa trong `tools/mask_fill.py`. "
+        "Run có hậu tố `_priority` dùng kế hoạch ưu tiên mask nét mảnh 3:1 (75/100 ảnh trên 5 mask), "
+        "nên chỉ so với các run `_priority` khác.",
         "",
         "| run_id | phiên bản | commit | ảnh | KID×1000 (tự chấm) | IC-LPIPS (tự chấm, ref) | chấm chéo | fill_thick | fill_thin | drift_far | L_def đầu → cuối |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
