@@ -93,6 +93,15 @@ MASKED_LOSS_NORMS = ("mask", "total")
 ATTENTION_LOSS_NORMS = ("region", "total")
 
 
+def thin_mask_part(mask: torch.Tensor, kernel: int = 7) -> torch.Tensor:
+    """Thin branches of a binary pixel mask (B, 1, H, W): the mask minus its morphological opening
+    with a kernel x kernel square (same definition as tools/mask_fill.py)."""
+    pad = kernel // 2
+    eroded = -F.max_pool2d(-mask, kernel, stride=1, padding=pad)
+    opened = F.max_pool2d(eroded, kernel, stride=1, padding=pad)
+    return (mask - opened).clamp(min=0)
+
+
 def attention_mask_loss(attention: torch.Tensor, mask: torch.Tensor, normalize: str = "region") -> torch.Tensor:
     """||A - M||^2 between the [V*] attention map and the defect mask, both (H, W) at latent size.
 

@@ -9,7 +9,14 @@ import time
 import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
-from model import ATTENTION_LOSS_NORMS, LATENT_MASK_MODES, MASKED_LOSS_NORMS, DefectFillModel, mask_to_latent
+from model import (
+    ATTENTION_LOSS_NORMS,
+    LATENT_MASK_MODES,
+    MASKED_LOSS_NORMS,
+    DefectFillModel,
+    mask_to_latent,
+    thin_mask_part,
+)
 from data_loader import generate_random_box_mask, get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
@@ -101,6 +108,7 @@ def train(args):
         "masked_loss": MASKED_LOSS_VERSION,
         "masked_loss_norm": args.masked_loss_norm,
         "attention_loss_norm": args.attention_loss_norm,
+        "thin_weight": args.thin_weight,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -149,6 +157,7 @@ def train(args):
         "masked_loss": MASKED_LOSS_VERSION,
         "masked_loss_norm": args.masked_loss_norm,
         "attention_loss_norm": args.attention_loss_norm,
+        "thin_weight": args.thin_weight,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -334,7 +343,12 @@ def train(args):
             
             # Compute losses
             noise_pred = outputs["noise_pred"]
-            defect_loss = model.compute_defect_loss(noise_pred, noise, mask_latents, normalize=args.masked_loss_norm)
+            # L_def weights: thin mask branches can be up-weighted (the UNet mask channel stays binary)
+            defect_weight_latents = mask_latents
+            if args.thin_weight != 1.0:
+                thin_latents = mask_to_latent(thin_mask_part(defect_masks), latent_size, args.latent_mask_mode)
+                defect_weight_latents = mask_latents + (args.thin_weight - 1.0) * thin_latents
+            defect_loss = model.compute_defect_loss(noise_pred, noise, defect_weight_latents, normalize=args.masked_loss_norm)
             
             # ========== PHASE 2: Object Branch (Object Integrity Learning) ==========
             # Random box masks M_rand (Eq. 6) for structural context learning
@@ -488,6 +502,13 @@ if __name__ == "__main__":
         choices=ATTENTION_LOSS_NORMS,
         default="region",
         help="Reduction of L_attn: region = mean inside + mean outside the mask (v6); total = mean over the map (v1-v5)",
+    )
+    parser.add_argument(
+        "--thin_weight",
+        type=float,
+        default=1.0,
+        help="L_def weight of thin mask branches (mask minus 7x7 opening); the squared error gets weight^2. "
+             "1.0 = off; v7 uses 2.5 so thin parts carry ~50%% of L_def for hazelnut/hole",
     )
     
     # Training Config

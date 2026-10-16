@@ -4,6 +4,22 @@ Mỗi phiên bản là một tag `defectfill_02-vN` trên branch `defectfill_02`
 
 Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIPS 0.31.
 
+## v7 — tăng trọng số $\mathcal L_{def}$ cho phần mảnh của mask (tag `defectfill_02-v7`)
+
+**Vấn đề:** v6 có lỗ đẹp nhưng không có vết nứt ở nét mảnh. Chẩn đoán `diagnostics/20261016_attention_thin_masks` cho thấy token `sks` của v6 đã dồn khoảng 55% attention vào nét mảnh. Như vậy model biết **đặt** defect ở đó, nhưng không biết **vẽ gì**.
+
+**Nguyên nhân:** trong 6 ảnh train, phần mảnh chỉ chiếm **14.8%** số ô mask ở mức latent (held-out: 31.2%). $\mathcal L_{def}$ vì thế gần như chỉ dạy cách vẽ lỗ tròn.
+
+**Thay đổi:**
+- `model.thin_mask_part(mask)` = mask trừ đi morphological opening 7×7 của nó, cùng định nghĩa với `tools/mask_fill.py`.
+- `train.py --thin_weight w`: trọng số của $\mathcal L_{def}$ là $M + (w-1)\cdot\mathrm{thin}$ ở mức latent. Vì trọng số nằm trong chuẩn bình phương, sai số ở ô mảnh có trọng số $w^2$. Kênh mask đưa vào UNet, $\mathcal L_{obj}$ và $\mathcal L_{attn}$ không đổi.
+- Mặc định `1.0` (tắt). v7 chạy với **`2.5`**: $\frac{2.5^2 \cdot 0.148}{2.5^2 \cdot 0.148 + 0.852} \approx 52\%$ $\mathcal L_{def}$ đến từ phần mảnh. Giá trị này có trong fingerprint resume.
+- Ngoài ra giữ như v6. Tool chẩn đoán `tools/attention_probe.py` và `DefectFillModel.token_attention_map` có từ commit `9872fa8`.
+
+**Ghi chú:** paper không có trọng số riêng cho phần mảnh. Đây là cách bù cho việc tập train ít ví dụ vết nứt, không phải tái hiện paper.
+
+Run: `…_v7_hazelnut_hole_100img_priority` (cùng kế hoạch 100 ảnh ưu tiên 3:1).
+
 ## v6 — chuẩn hóa $\mathcal L_{attn}$ theo vùng trong / ngoài mask (tag `defectfill_02-v6`)
 
 **Vấn đề** (run `20261016_*_priority`): v5 cho lỗ tối, sắc, nhưng không có vết nứt ở nét mảnh và lỗ nhỏ hơn mask. $\mathcal L_{attn}$ được tính trung bình trên toàn bản đồ 64×64, nên độ lớn chỉ cỡ diện tích mask (khoảng 0.013). Khi $\mathcal L_{def}$ mạnh, $\mathcal L_{attn}$ gần như không giảm (v5: 0.018 → 0.013; baseline: 0.0134 → 0.0133). Chỉ ở v4, nơi $\mathcal L_{def}$ yếu, $\mathcal L_{attn}$ mới học được (0.009 → 0.003) và defect mới theo nét mảnh.

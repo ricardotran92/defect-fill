@@ -66,7 +66,7 @@ def test_training_blanks_the_background_with_the_full_resolution_mask():
 
     assert "masked_images = defect_images * (1 - defect_masks)" in train
     assert "random_masked_images = defect_images * (1 - random_masks)" in train
-    assert train.count("mask_to_latent(") == 2
+    assert train.count("mask_to_latent(") == 3  # defect mask, random boxes, thin part (v7 L_def weights)
     assert train.count('"latent_mask_mode": args.latent_mask_mode') == 2
     assert train.count('"background_mask": BACKGROUND_MASK') == 2
     assert "F.interpolate(defect_masks" not in train
