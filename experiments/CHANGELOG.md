@@ -4,6 +4,20 @@ Mỗi phiên bản là một tag `defectfill_02-vN` trên branch `defectfill_02`
 
 Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIPS 0.31.
 
+## v6 — chuẩn hóa $\mathcal L_{attn}$ theo vùng trong / ngoài mask (tag `defectfill_02-v6`)
+
+**Vấn đề** (run `20261016_*_priority`): v5 cho lỗ tối, sắc, nhưng không có vết nứt ở nét mảnh và lỗ nhỏ hơn mask. $\mathcal L_{attn}$ được tính trung bình trên toàn bản đồ 64×64, nên độ lớn chỉ cỡ diện tích mask (khoảng 0.013). Khi $\mathcal L_{def}$ mạnh, $\mathcal L_{attn}$ gần như không giảm (v5: 0.018 → 0.013; baseline: 0.0134 → 0.0133). Chỉ ở v4, nơi $\mathcal L_{def}$ yếu, $\mathcal L_{attn}$ mới học được (0.009 → 0.003) và defect mới theo nét mảnh.
+
+**Thay đổi:** `model.attention_mask_loss(A, M, "region")` = trung bình $(A-1)^2$ trong mask + trung bình $A^2$ ngoài mask. Độ lớn không còn phụ thuộc diện tích defect (khoảng 1 khi `sks` không chú ý vào mask, 0 khi khớp hoàn toàn).
+- `train.py --attention_loss_norm region|total`, mặc định `region`, có trong fingerprint resume. `total` là cách của v1–v5.
+- Mọi thứ khác giữ như v5 (`--masked_loss_norm mask`, mask latent max-pool, ảnh nền theo mask gốc, `GradScaler`).
+
+**Kỳ vọng:** lỗ tối, sắc như v5 (nhờ $\mathcal L_{def}$), đồng thời phủ đúng hình mask và có vết nứt ở nét mảnh (nhờ $\mathcal L_{attn}$ học được). Paper Hình 7 cũng nói bỏ $\mathcal L_{attn}$ thì "incomplete hole".
+
+**Rủi ro:** $\lambda_{attn}=0.05$ nhân với $\mathcal L_{attn}$ khoảng 1 cho đóng góp ngang $\lambda_{def}\mathcal L_{def}$ (khoảng 0.06). Nếu attention quá mạnh, ảnh có thể bị vỡ trong mask; theo dõi bằng ảnh và `fill_*`.
+
+Run: `…_v6_hazelnut_hole_100img_priority` (cùng kế hoạch 100 ảnh ưu tiên 3:1 với ba bộ so sánh của v5).
+
 ## v5 — chuẩn hóa loss có mask theo trọng số trong mask (tag `defectfill_02-v5`)
 
 **Vấn đề:** từ v2 đến v4, defect sinh ra nhạt và mờ, nét mảnh chỉ là vệt sáng. Paper (Hình 6, Hình S9) cho lỗ đen sâu, mép sắc, và nét mảnh thành vết nứt tối. Ảnh train thật cũng như vậy: lỗ tối, viền gỗ sáng sần sùi, vết nứt mảnh tối.

@@ -9,7 +9,7 @@ import time
 import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
-from model import LATENT_MASK_MODES, MASKED_LOSS_NORMS, DefectFillModel, mask_to_latent
+from model import ATTENTION_LOSS_NORMS, LATENT_MASK_MODES, MASKED_LOSS_NORMS, DefectFillModel, mask_to_latent
 from data_loader import generate_random_box_mask, get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
@@ -100,6 +100,7 @@ def train(args):
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
         "masked_loss_norm": args.masked_loss_norm,
+        "attention_loss_norm": args.attention_loss_norm,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -147,6 +148,7 @@ def train(args):
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
         "masked_loss_norm": args.masked_loss_norm,
+        "attention_loss_norm": args.attention_loss_norm,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -199,6 +201,7 @@ def train(args):
         lora_dropout=args.lora_dropout,
         seed=args.seed,
         base_model_path=args.base_model_path,
+        attention_loss_norm=args.attention_loss_norm,
     )
     
     # Set up optimizers with specific learning rates for Text Encoder and UNet
@@ -479,6 +482,12 @@ if __name__ == "__main__":
         choices=MASKED_LOSS_NORMS,
         default="mask",
         help="Reduction of L_def/L_obj: mask = weighted mean over the mask (v5); total = mean over all elements (v2-v4)",
+    )
+    parser.add_argument(
+        "--attention_loss_norm",
+        choices=ATTENTION_LOSS_NORMS,
+        default="region",
+        help="Reduction of L_attn: region = mean inside + mean outside the mask (v6); total = mean over the map (v1-v5)",
     )
     
     # Training Config

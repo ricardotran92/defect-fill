@@ -90,6 +90,27 @@ class AttentionStoreProcessor(AttnProcessor):
 
 LATENT_MASK_MODES = ("maxpool", "nearest")
 MASKED_LOSS_NORMS = ("mask", "total")
+ATTENTION_LOSS_NORMS = ("region", "total")
+
+
+def attention_mask_loss(attention: torch.Tensor, mask: torch.Tensor, normalize: str = "region") -> torch.Tensor:
+    """||A - M||^2 between the [V*] attention map and the defect mask, both (H, W) at latent size.
+
+    "total" (v1-v5): mean over the whole map. Its size scales with the mask area (~0.013 for
+    hazelnut/hole), so once L_def is strong it barely trains and the defect stops following the
+    mask shape, thin branches included.
+    "region" (v6): mean of (A - 1)^2 inside the mask plus mean of A^2 outside, so both regions
+    count fully whatever the defect area.
+    """
+    attention = attention.float()
+    mask = mask.float()
+    if normalize == "total":
+        return F.mse_loss(attention, mask)
+    if normalize == "region":
+        inside = (mask * (attention - 1.0).pow(2)).sum() / mask.sum().clamp(min=1e-6)
+        outside = ((1.0 - mask) * attention.pow(2)).sum() / (1.0 - mask).sum().clamp(min=1e-6)
+        return inside + outside
+    raise ValueError(f"Unknown attention-loss normalization {normalize!r}; choose from {ATTENTION_LOSS_NORMS}")
 
 
 def mask_to_latent(mask: torch.Tensor, latent_size, mode: str = "maxpool") -> torch.Tensor:
@@ -140,10 +161,12 @@ class DefectFillModel(nn.Module):
         seed=42,
         placeholder_token="sks",
         base_model_path=None,
+        attention_loss_norm="region",
     ):
         super().__init__()
         torch.manual_seed(seed)
         self.device = device
+        self.attention_loss_norm = attention_loss_norm
 
         # Base Model ID
         hf_model_id = "sd2-community/stable-diffusion-2-inpainting"
@@ -310,7 +333,7 @@ class DefectFillModel(nn.Module):
             if resized_attention_maps:
                 avg_attn_map = torch.stack(resized_attention_maps).mean(dim=0)
                 # L2 Loss: ||AttentionMap - Mask||^2
-                sample_loss = F.mse_loss(avg_attn_map, mask)
+                sample_loss = attention_mask_loss(avg_attn_map, mask, getattr(self, "attention_loss_norm", "region"))
                 attention_loss += sample_loss
         
         return attention_loss / batch_size if batch_size > 0 else attention_loss
