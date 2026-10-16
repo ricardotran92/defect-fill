@@ -4,6 +4,23 @@ Mỗi phiên bản là một tag `defectfill_02-vN` trên branch `defectfill_02`
 
 Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIPS 0.31.
 
+## Chẩn đoán split 113 (16/10/2026, không phải phiên bản mới)
+
+**Câu hỏi:** model có vẽ được vết nứt ở nét mảnh khi 6 ảnh train có vết nứt không?
+
+**Cách chạy:** code tag `defectfill_02-v7` với `--thin_weight 1.0` (loss giống v6) và `--split_seed 113` (`diagnostics/20261016_split_thin_share`). Tập train là 009, 012, 010, 011, 002, 014, có vết nứt tối và nét mảnh chiếm 14.1% (seed 42 chỉ có 2.8%). Sinh 100 ảnh ưu tiên 3:1 trên hai mask mảnh còn ở held-out, 006 và 016. Run `20261016_v6split113_hazelnut_hole_100img_priority`; hình `figures/20261016_split113_vs_v6_masks006_016.jpg` (hàng 1: 006, hàng 2: 016, 3 mẫu v6 seed 42 | 3 mẫu split 113; hàng 3: 6 ảnh train của split 113).
+
+| Theo từng mask (cùng mask, khác ảnh normal/seed) | v6, seed 42 | **split 113** |
+|---|---|---|
+| 016: nét mảnh / phần dày được vẽ | 3.3% / 36.6% | **20.4% / 54.1%** |
+| 006: nét mảnh / phần dày được vẽ | 10.1% / 38.3% | 9.5% / **66.5%** |
+
+**Kết luận:**
+- **Lần đầu tiên model vẽ ra vết nứt tối, mảnh** tỏa ra từ lỗ, và có mẫu vẽ vết nứt dài dọc nhánh mask (mask 016). Lỗ phủ mask tốt hơn hẳn, viền gỗ sáng giống ảnh thật.
+- Với 006 (nét mảnh dài nhất, 31%), vết nứt dài vẫn chưa được vẽ hết.
+- Như vậy **nút thắt chính là dữ liệu tham chiếu**, không phải loss: model chỉ vẽ được loại vết nứt mà 6 ảnh train có. Split mặc định (seed 42) gần như không có vết nứt nào. Paper chia ngẫu nhiên và không nêu seed.
+- KID và IC-LPIPS của run này không so được với các run seed 42, vì tập held-out khác nhau.
+
 ## v7 — tăng trọng số $\mathcal L_{def}$ cho phần mảnh của mask (tag `defectfill_02-v7`)
 
 **Vấn đề:** v6 có lỗ đẹp nhưng không có vết nứt ở nét mảnh. Chẩn đoán `diagnostics/20261016_attention_thin_masks` cho thấy token `sks` của v6 đã dồn khoảng 55% attention vào nét mảnh. Như vậy model biết **đặt** defect ở đó, nhưng không biết **vẽ gì**.
