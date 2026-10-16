@@ -16,7 +16,27 @@ Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIP
 
 **Rủi ro:** $\lambda_{attn}=0.05$ nhân với $\mathcal L_{attn}$ khoảng 1 cho đóng góp ngang $\lambda_{def}\mathcal L_{def}$ (khoảng 0.06). Nếu attention quá mạnh, ảnh có thể bị vỡ trong mask; theo dõi bằng ảnh và `fill_*`.
 
-Run: `…_v6_hazelnut_hole_100img_priority` (cùng kế hoạch 100 ảnh ưu tiên 3:1 với ba bộ so sánh của v5).
+**Kết quả** (16/10/2026, run `20261016_v6_hazelnut_hole_100img_priority`, cùng kế hoạch 100 ảnh ưu tiên 3:1 và cùng cặp ảnh/mask/seed với ba bộ của v5; hình: `figures/20261016_thin_masks_baseline_v4_v5_v6.jpg`):
+
+| 100 ảnh, kế hoạch ưu tiên | baseline | v4 | v5 | **v6** |
+|---|---|---|---|---|
+| `fill_thin` | 5.8% | 21.0% | 3.3% | 6.0% |
+| `fill_thick` | 45.4% | 46.5% | 33.3% | 40.9% |
+| `drift_far` | 2.17 | 0 | 0 | 0 |
+| KID×1000 (±) | −1.20 (4.23) | 2.30 (5.30) | 0.94 (5.47) | −1.77 (4.53) |
+| IC-LPIPS, tâm = ảnh train | 0.249 | 0.249 | 0.247 | 0.252 |
+| $\mathcal L_{attn}$ khi train (đầu → cuối, mỗi 400 bước) | 0.0134 → 0.0133 | 0.0091 → 0.0029 | 0.0181 → 0.0132 | **0.240 → 0.019** (thang đo theo vùng) |
+| $\mathcal L_{def}$ khi train | 1.16 → 0.52 | 0.0049 → 0.0023 | 0.263 → 0.117 | 0.267 → 0.117 |
+
+- $\mathcal L_{attn}$ học rất mạnh, và $\mathcal L_{def}$ vẫn mạnh như v5. Train 1:17:20 (GPU 2 không có ai dùng chung), `LossScale` không giảm lần nào.
+- **Lỗ:** to hơn v5, phủ phần thân mask tốt hơn. Mép không đều, có viền gỗ sáng sần sùi, bên trong tối có chiều sâu. Đây là bộ giống ảnh thật và Hình 6 nhất từ trước tới nay.
+- **Vết nứt ở nét mảnh vẫn không có** (`fill_thin` 6%). Attention đã được học theo đúng mask mà model vẫn không vẽ ở nét mảnh, nên nguyên nhân không nằm ở $\mathcal L_{attn}$.
+- **Nguyên nhân khả dĩ nhất là dữ liệu:** 6 ảnh train của hazelnut/hole gần như không có nét mảnh (2.8% diện tích mask, so với 10.3% ở held-out). Model học "hole" là lỗ tròn, và không có ví dụ nào cho "vết nứt mảnh".
+
+**Hướng tiếp theo (chưa chạy):**
+1. Xem trực tiếp bản đồ attention của `sks` ở nét mảnh trên ảnh sinh (chạy trên server, rẻ). Mục đích là xác nhận attention đã phủ nét mảnh, và nhánh vẽ mới là chỗ thiếu.
+2. Tăng trọng số $\mathcal L_{def}$ cho phần mảnh của mask (tách bằng morphological opening, như `tools/mask_fill.py`).
+3. Kiểm tra split: `split_seed` hiện tại cho 6 ảnh train ít nét mảnh. Với split khác, paper có thể đã có ảnh train chứa vết nứt. Đổi split làm thay đổi protocol, nên chỉ dùng để chẩn đoán.
 
 ## v5 — chuẩn hóa loss có mask theo trọng số trong mask (tag `defectfill_02-v5`)
 
