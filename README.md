@@ -94,6 +94,8 @@ python inference.py \
 
 While the code is still changing, generate **100 images** per run for quick comparisons (the paper uses 1000; pass `--total_images 1000` for a final run). Use a new `--output_dir` for each image count: evaluation scores every `*_generated.png` in the directory, and resuming into a folder that already holds 1000 images would mix the two runs.
 
+To check how thin mask branches are filled, favour chosen held-out masks: `--priority_masks 006_mask.png,010_mask.png,011_mask.png,014_mask.png,016_mask.png --priority_ratio 3` spends 3 of every 4 outputs on those masks (75 of 100 images, 15 per mask) and 1 of every 4 on the remaining masks. Seeds and normal images depend only on the output index, so runs with the same settings compare identical image/mask/seed triples. Metrics of a priority plan are only comparable with other runs that use the same plan; write it to its own output folder (for example a `_100p` suffix).
+
 Inference uses only held-out masks from the saved split manifest, keeps the full 512-by-512 view, applies persistent-noise latent background preservation, and updates `inference_log.json` after every output so generation can also resume.
 
 ### 3. Evaluation

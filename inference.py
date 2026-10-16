@@ -54,13 +54,45 @@ def prepare_full_view_inputs(
     )
 
 
-def calculate_generation_plan(num_good_images, num_masks, target_total=1000):
+def calculate_generation_plan(num_good_images, num_masks, target_total=1000, priority_indices=None, priority_ratio=3):
+    """(normal image index, held-out mask index, output index) for every output image.
+
+    Without priority masks, the masks cycle in manifest order. With priority masks, every block of
+    priority_ratio + 1 outputs uses priority_ratio of them (cycling through the priority masks) and one
+    of the remaining masks (cycling through those): 3:1 puts 75 of 100 outputs on the priority masks.
+    Normal images always cycle by output index, and seeds depend only on the output index, so runs
+    with the same plan compare the same image/mask/seed triples.
+    """
     if num_good_images <= 0 or num_masks <= 0:
         return []
-    return [
-        (output_index % num_good_images, output_index % num_masks, output_index)
-        for output_index in range(target_total)
-    ]
+    priority = list(priority_indices or [])
+    if not priority:
+        return [
+            (output_index % num_good_images, output_index % num_masks, output_index)
+            for output_index in range(target_total)
+        ]
+    if priority_ratio < 1:
+        raise ValueError("priority_ratio must be at least 1")
+    others = [index for index in range(num_masks) if index not in set(priority)]
+    plan, used_priority, used_others = [], 0, 0
+    for output_index in range(target_total):
+        if not others or output_index % (priority_ratio + 1) < priority_ratio:
+            mask_index = priority[used_priority % len(priority)]
+            used_priority += 1
+        else:
+            mask_index = others[used_others % len(others)]
+            used_others += 1
+        plan.append((output_index % num_good_images, mask_index, output_index))
+    return plan
+
+
+def resolve_priority_masks(heldout_pairs, mask_names):
+    """Indices of the named held-out masks (file names such as 006_mask.png), in the given order."""
+    lookup = {Path(pair["mask"]).name: index for index, pair in enumerate(heldout_pairs)}
+    missing = [name for name in mask_names if name not in lookup]
+    if missing:
+        raise ValueError(f"Priority masks not in the held-out split: {missing}; held-out masks: {sorted(lookup)}")
+    return [lookup[name] for name in mask_names]
 
 
 def write_json_atomic(value, path):
@@ -186,6 +218,8 @@ def inference(args):
         len(good_files),
         len(heldout_pairs),
         target_total=args.total_images,
+        priority_indices=resolve_priority_masks(heldout_pairs, args.priority_masks),
+        priority_ratio=args.priority_ratio,
     )
     if not generation_plan:
         raise ValueError("No normal images or held-out masks are available for generation")
@@ -212,6 +246,8 @@ def inference(args):
         "lfs_mask": "binary",
         "latent_mask_mode": args.latent_mask_mode,
         "composite": args.composite,
+        "priority_masks": args.priority_masks,
+        "priority_ratio": args.priority_ratio if args.priority_masks else None,
     }
     inference_log = _load_existing_log(log_path, resume_signature) or {
         "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -300,6 +336,18 @@ if __name__ == "__main__":
     parser.add_argument("--total_images", type=int, default=1000, help="Synthetic images to create")
     parser.add_argument("--batch_size", type=int, default=4, help="Parallel candidate batch size")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--priority_masks",
+        type=str,
+        default="",
+        help="Comma-separated held-out mask file names to favour, e.g. 006_mask.png,010_mask.png",
+    )
+    parser.add_argument(
+        "--priority_ratio",
+        type=int,
+        default=3,
+        help="Outputs on priority masks per output on the other masks (3 = 3:1)",
+    )
     parser.add_argument("--lora_rank", type=int, default=8)
     parser.add_argument("--lora_alpha", type=int, default=16)
     parser.add_argument("--lora_dropout", type=float, default=0.1)
@@ -320,4 +368,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.dilate_mask = args.dilate_mask.lower() == "true"
     args.composite = args.composite == "on"
+    args.priority_masks = [name.strip() for name in args.priority_masks.split(",") if name.strip()]
     inference(args)
