@@ -4,6 +4,29 @@ Mỗi phiên bản là một tag `defectfill_02-vN` trên branch `defectfill_02`
 
 Paper (hazelnut, trung bình mọi loại defect, 1000 ảnh): KID 1.13, IC-LPIPS 0.31.
 
+## v5 — chuẩn hóa loss có mask theo trọng số trong mask (tag `defectfill_02-v5`)
+
+**Vấn đề:** từ v2 đến v4, defect sinh ra nhạt và mờ, nét mảnh chỉ là vệt sáng. Paper (Hình 6, Hình S9) cho lỗ đen sâu, mép sắc, và nét mảnh thành vết nứt tối. Ảnh train thật cũng như vậy: lỗ tối, viền gỗ sáng sần sùi, vết nứt mảnh tối.
+
+**Loại trừ guidance scale** (quét trên PC ngày 16/10, checkpoint v4, 4 cặp, w = 2 / 5 / 7.5 / 10): guidance cao **không** làm defect rõ hơn. Nét mảnh vỡ thành mảnh màu tím xanh, và bên trong lỗ ra màu lạ. w = 2 là sạch nhất, nên giữ w = 2.
+
+**Nguyên nhân (giả thuyết, cần run để xác nhận):** cách chuẩn hóa L1 của v1 (chia cho số phần tử của toàn tensor) làm $\mathcal L_{def}$ tỉ lệ với diện tích defect. Mask train của hazelnut/hole chỉ chiếm 1.2% diện tích ảnh, nên $\mathcal L_{def}$ chỉ còn khoảng 1% độ lớn.
+
+| | Trọng số 1 pixel defect : 1 pixel nền |
+|---|---|
+| Baseline (chia theo diện tích mask, có lỗi ×4) | khoảng 460 : 1 |
+| v2–v4 (chia cho toàn tensor) | khoảng 39 : 1 |
+
+Nhánh object (tái tạo nền quanh box ngẫu nhiên) lấn át, nên model "tái tạo nhiều hơn tạo defect". Đây đúng là hiện tượng paper mô tả ở Hình 7 khi bỏ $\mathcal L_{def}$. Mask train còn ít nét mảnh: phần mảnh chiếm 2.8% mask train, so với 10.3% ở mask held-out.
+
+**Thay đổi:**
+
+- `compute_masked_mse(..., normalize)`. Với `"mask"` (mặc định), loss là $\sum (W\odot r)^2 / \sum W^2$ trên mọi kênh: trung bình có trọng số trong mask. $M'$ vẫn nằm trong chuẩn bình phương (nền có trọng số α²), và không còn lỗi ×4 của baseline.
+- `train.py --masked_loss_norm mask|total`, có trong fingerprint resume. `total` là cách của v2–v4.
+- Paper không nói cách chuẩn hóa. Đây là lựa chọn theo bằng chứng thực nghiệm; nó thay thế cách đọc "sát chữ" đã chọn ở v1.
+
+Run: `…_v5_hazelnut_hole_100img`.
+
 ## v4 — giữ max-pool cho mask latent, nhưng ảnh nền và đường ghép dùng mask gốc (tag `defectfill_02-v4`)
 
 **Vấn đề của v3** (run `20261014_v3_hazelnut_hole_100img`): `fill_thin` tăng lên 28.6% và `drift_far` = 0 như mong đợi. Tuy nhiên lỗ và đường ghép có **hình khối vuông theo lưới 8×8**.

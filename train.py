@@ -9,7 +9,7 @@ import time
 import numpy as np
 from torch.optim import AdamW
 from tqdm import tqdm
-from model import LATENT_MASK_MODES, DefectFillModel, mask_to_latent
+from model import LATENT_MASK_MODES, MASKED_LOSS_NORMS, DefectFillModel, mask_to_latent
 from data_loader import generate_random_box_mask, get_data_loaders
 from protocol import (
     PROTOCOL_VERSION,
@@ -99,6 +99,7 @@ def train(args):
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
+        "masked_loss_norm": args.masked_loss_norm,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -145,6 +146,7 @@ def train(args):
         "lambda_attn": args.lambda_attn,
         "alpha": args.alpha,
         "masked_loss": MASKED_LOSS_VERSION,
+        "masked_loss_norm": args.masked_loss_norm,
         "loss_scaling": LOSS_SCALING_VERSION,
         "latent_mask_mode": args.latent_mask_mode,
         "background_mask": BACKGROUND_MASK,
@@ -329,7 +331,7 @@ def train(args):
             
             # Compute losses
             noise_pred = outputs["noise_pred"]
-            defect_loss = model.compute_defect_loss(noise_pred, noise, mask_latents)
+            defect_loss = model.compute_defect_loss(noise_pred, noise, mask_latents, normalize=args.masked_loss_norm)
             
             # ========== PHASE 2: Object Branch (Object Integrity Learning) ==========
             # Random box masks M_rand (Eq. 6) for structural context learning
@@ -358,7 +360,8 @@ def train(args):
                 attention_mask_latents=object_weight_latents
             )
 
-            object_loss = model.compute_object_loss(obj_outputs["noise_pred"], noise, object_weight_latents, alpha=args.alpha)
+            object_loss = model.compute_object_loss(obj_outputs["noise_pred"], noise, object_weight_latents, alpha=args.alpha,
+                                                    normalize=args.masked_loss_norm)
             attention_loss = obj_outputs.get("attention_loss", torch.tensor(0.0, device=device))
             
             # Total Loss Calculation
@@ -471,6 +474,12 @@ if __name__ == "__main__":
     parser.add_argument("--lambda_obj", type=float, default=0.2, help="Object integrity loss weight (L_obj)")
     parser.add_argument("--lambda_attn", type=float, default=0.05, help="Attention loss weight (L_attn)")
     parser.add_argument("--alpha", type=float, default=0.3, help="Background weight for object branch")
+    parser.add_argument(
+        "--masked_loss_norm",
+        choices=MASKED_LOSS_NORMS,
+        default="mask",
+        help="Reduction of L_def/L_obj: mask = weighted mean over the mask (v5); total = mean over all elements (v2-v4)",
+    )
     
     # Training Config
     parser.add_argument("--config_name", type=str, default="base", help="Experiment name (base/tex/obj)")

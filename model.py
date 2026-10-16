@@ -89,6 +89,7 @@ class AttentionStoreProcessor(AttnProcessor):
         return hidden_states
 
 LATENT_MASK_MODES = ("maxpool", "nearest")
+MASKED_LOSS_NORMS = ("mask", "total")
 
 
 def mask_to_latent(mask: torch.Tensor, latent_size, mode: str = "maxpool") -> torch.Tensor:
@@ -377,24 +378,37 @@ class DefectFillModel(nn.Module):
         }
 
     @staticmethod
-    def compute_masked_mse(noise_pred: torch.Tensor, noise: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Paper Eq. 5/7: E[||W ⊙ (ε − ε_θ)||²], averaged over all latent elements in FP32.
+    def compute_masked_mse(noise_pred: torch.Tensor, noise: torch.Tensor, mask: torch.Tensor,
+                           normalize: str = "mask") -> torch.Tensor:
+        """Paper Eq. 5/7: ||W ⊙ (ε − ε_θ)||², computed in FP32.
 
         The weight sits inside the squared norm, so a soft weight w contributes w² per element.
-        Averaging over every element (a constant divisor) keeps the paper's relative weighting
-        between samples, unlike dividing by the mask area.
+        The paper does not state the reduction:
+        - "mask": divide by the weight energy sum(W²) over all channels, i.e. a weighted mean over
+          the masked elements. A defect covering ~1% of the image still gives a full-strength
+          L_def signal.
+        - "total": divide by the number of elements (v2-v4). L_def then shrinks with the defect
+          area (~1% for hazelnut/hole), the object branch dominates and the model reconstructs
+          instead of drawing defects, as in paper Fig. 7 without L_def.
         """
-        residual = mask.float() * (noise.float() - noise_pred.float())
-        return residual.pow(2).mean()
+        residual_sq = (mask.float() * (noise.float() - noise_pred.float())).pow(2)
+        if normalize == "total":
+            return residual_sq.mean()
+        if normalize == "mask":
+            energy = mask.float().pow(2).expand_as(residual_sq).sum()
+            return residual_sq.sum() / energy.clamp(min=1e-6)
+        raise ValueError(f"Unknown masked-loss normalization {normalize!r}; choose from {MASKED_LOSS_NORMS}")
 
-    def compute_defect_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor) -> torch.Tensor:
+    def compute_defect_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor,
+                            normalize: str = "mask") -> torch.Tensor:
         """L_def (Eq. 5): squared error restricted to the defect mask M"""
-        return self.compute_masked_mse(noise_pred, noise, mask_latents)
+        return self.compute_masked_mse(noise_pred, noise, mask_latents, normalize)
 
-    def compute_object_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor, alpha: float = 0.3) -> torch.Tensor:
+    def compute_object_loss(self, noise_pred: torch.Tensor, noise: torch.Tensor, mask_latents: torch.Tensor,
+                            alpha: float = 0.3, normalize: str = "mask") -> torch.Tensor:
         """L_obj (Eq. 7): ||M' ⊙ (ε − ε_θ)||² with M' = M + alpha*(1-M), so background weighs alpha²"""
         weighted_mask = mask_latents + alpha * (1 - mask_latents)
-        return self.compute_masked_mse(noise_pred, noise, weighted_mask)
+        return self.compute_masked_mse(noise_pred, noise, weighted_mask, normalize)
     
     def generate(
         self,

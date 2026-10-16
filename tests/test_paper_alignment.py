@@ -25,10 +25,13 @@ def test_object_loss_weights_background_by_alpha_squared():
     defect_mask = torch.tensor([[[[1.0, 0.0]]]])
     host = SimpleNamespace(compute_masked_mse=DefectFillModel.compute_masked_mse)
 
-    loss = DefectFillModel.compute_object_loss(host, noise_pred, noise, defect_mask, alpha=0.3)
+    total = DefectFillModel.compute_object_loss(host, noise_pred, noise, defect_mask, alpha=0.3, normalize="total")
+    weighted = DefectFillModel.compute_object_loss(host, noise_pred * torch.tensor([1.0, 2.0]), noise, defect_mask,
+                                                   alpha=0.3, normalize="mask")
 
-    # M' = [1, 0.3] sits inside the squared norm: (1² + 0.3²) / 2
-    assert torch.isclose(loss, torch.tensor((1.0 + 0.09) / 2))
+    # M' = [1, 0.3] sits inside the squared norm: background weighs 0.3² = 0.09
+    assert torch.isclose(total, torch.tensor((1.0 + 0.09) / 2))
+    assert torch.isclose(weighted, torch.tensor((1.0 + 0.09 * 4.0) / (1.0 + 0.09)))
 
 
 def test_random_box_mask_is_reproducible_and_follows_paper_box_sizes():
@@ -79,6 +82,8 @@ def test_masked_loss_version_is_part_of_the_resume_fingerprint():
     source = (ROOT / "train.py").read_text(encoding="utf-8")
 
     assert source.count('"masked_loss": MASKED_LOSS_VERSION') == 2
+    assert source.count('"masked_loss_norm": args.masked_loss_norm') == 2
+    assert "normalize=args.masked_loss_norm" in source
 
 
 def test_training_scales_the_fp16_loss_and_fingerprints_it():
